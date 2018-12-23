@@ -32,7 +32,6 @@ namespace PuppeteerSharp
         private TaskCompletionSource<bool> _sameDocumentNavigationTaskWrapper;
         private TaskCompletionSource<bool> _lifecycleTaskWrapper;
         private TaskCompletionSource<bool> _terminationTaskWrapper;
-        private readonly Task _timeoutTask;
 
         public LifecycleWatcher(
             FrameManager frameManager,
@@ -61,17 +60,16 @@ namespace PuppeteerSharp
             _timeout = timeout;
             _hasSameDocumentNavigation = false;
 
+            _sameDocumentNavigationTaskWrapper = new TaskCompletionSource<bool>();
+            _newDocumentNavigationTaskWrapper = new TaskCompletionSource<bool>();
+            _lifecycleTaskWrapper = new TaskCompletionSource<bool>();
+            _terminationTaskWrapper = new TaskCompletionSource<bool>();
+
             frameManager.LifecycleEvent += CheckLifecycleComplete;
             frameManager.FrameNavigatedWithinDocument += NavigatedWithinDocument;
             frameManager.FrameDetached += OnFrameDetached;
             frameManager.NetworkManager.Request += OnRequest;
             frameManager.Client.Disconnected += OnClientDisconnected;
-
-            _sameDocumentNavigationTaskWrapper = new TaskCompletionSource<bool>();
-            _newDocumentNavigationTaskWrapper = new TaskCompletionSource<bool>();
-            _lifecycleTaskWrapper = new TaskCompletionSource<bool>();
-            _terminationTaskWrapper = new TaskCompletionSource<bool>();
-            _timeoutTask = TaskHelper.CreateTimeoutTask(timeout);
         }
 
         #region Properties
@@ -79,7 +77,8 @@ namespace PuppeteerSharp
         public Task<bool> SameDocumentNavigationTask => _sameDocumentNavigationTaskWrapper.Task;
         public Task<bool> NewDocumentNavigationTask => _newDocumentNavigationTaskWrapper.Task;
         public Response NavigationResponse => _navigationRequest?.Response;
-        public Task<Task> TimeoutOrTerminationTask => Task.WhenAny(_timeoutTask, _terminationTaskWrapper.Task);
+        public Task TimeoutOrTerminationTask
+            => _terminationTaskWrapper.Task.WithTimeout(_timeout);
         public Task LifecycleTask => _lifecycleTaskWrapper.Task;
 
         #endregion
