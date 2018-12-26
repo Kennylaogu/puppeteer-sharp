@@ -1075,7 +1075,7 @@ namespace PuppeteerSharp
             }
 
             _logger.LogWarning("Protocol error: Connection closed. Most likely the page has been closed.");
-            return Task.CompletedTask;
+            return Target.CloseTask;
         }
 
         /// <summary>
