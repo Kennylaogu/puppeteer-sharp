@@ -46,7 +46,7 @@ namespace PuppeteerSharp
         private PageGetLayoutMetricsResponse _burstModeMetrics;
         private bool _screenshotBurstModeOn;
         private ScreenshotOptions _screenshotBurstModeOptions;
-        private TaskCompletionSource<bool> _closeCompletedTcs = new TaskCompletionSource<bool>();
+        private TaskCompletionSource<bool> _closeCompletedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private static readonly Dictionary<string, decimal> _unitToPixels = new Dictionary<string, decimal> {
             {"px", 1},
@@ -1406,7 +1406,7 @@ namespace PuppeteerSharp
         public async Task<Request> WaitForRequestAsync(Func<Request, bool> predicate, WaitForOptions options = null)
         {
             var timeout = options?.Timeout ?? DefaultWaitForTimeout;
-            var requestTcs = new TaskCompletionSource<Request>();
+            var requestTcs = new TaskCompletionSource<Request>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             void requestEventListener(object sender, RequestEventArgs e)
             {
@@ -1456,7 +1456,7 @@ namespace PuppeteerSharp
         public async Task<Response> WaitForResponseAsync(Func<Response, bool> predicate, WaitForOptions options = null)
         {
             var timeout = options?.Timeout ?? DefaultWaitForTimeout;
-            var responseTcs = new TaskCompletionSource<Response>();
+            var responseTcs = new TaskCompletionSource<Response>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             void responseEventListener(object sender, ResponseCreatedEventArgs e)
             {
@@ -1781,7 +1781,7 @@ namespace PuppeteerSharp
                         OnDialog(e.MessageData.ToObject<PageJavascriptDialogOpeningResponse>(true));
                         break;
                     case "Runtime.exceptionThrown":
-                        HandleException(e.MessageData.SelectToken(MessageKeys.ExceptionDetails).ToObject<EvaluateExceptionResponseDetails>(true));
+                        HandleException(e.MessageData.ToObject<RuntimeExceptionThrownResponse>(true).ExceptionDetails);
                         break;
                     case "Security.certificateError":
                         await OnCertificateError(e.MessageData.ToObject<CertificateErrorResponse>(true)).ConfigureAwait(false);
@@ -1793,10 +1793,10 @@ namespace PuppeteerSharp
                         EmitMetrics(e.MessageData.ToObject<PerformanceMetricsResponse>(true));
                         break;
                     case "Target.attachedToTarget":
-                        await OnAttachedToTarget(e).ConfigureAwait(false);
+                        await OnAttachedToTarget(e.MessageData.ToObject<TargetAttachedToTargetResponse>(true)).ConfigureAwait(false);
                         break;
                     case "Target.detachedFromTarget":
-                        OnDetachedFromTarget(e);
+                        OnDetachedFromTarget(e.MessageData.ToObject<TargetDetachedFromTargetResponse>(true));
                         break;
                     case "Log.entryAdded":
                         await OnLogEntryAddedAsync(e.MessageData.ToObject<LogEntryAddedResponse>(true)).ConfigureAwait(false);
@@ -1875,9 +1875,9 @@ namespace PuppeteerSharp
             return result;
         }
 
-        private void OnDetachedFromTarget(MessageEventArgs e)
+        private void OnDetachedFromTarget(TargetDetachedFromTargetResponse e)
         {
-            var sessionId = e.MessageData.SelectToken(MessageKeys.SessionId).AsString();
+            var sessionId = e.SessionId;
             if (_workers.TryGetValue(sessionId, out var worker))
             {
                 WorkerDestroyed?.Invoke(this, new WorkerEventArgs(worker));
@@ -1885,10 +1885,10 @@ namespace PuppeteerSharp
             }
         }
 
-        private async Task OnAttachedToTarget(MessageEventArgs e)
+        private async Task OnAttachedToTarget(TargetAttachedToTargetResponse e)
         {
-            var targetInfo = e.MessageData.SelectToken(MessageKeys.TargetInfo).ToObject<TargetInfo>(true);
-            var sessionId = e.MessageData.SelectToken(MessageKeys.SessionId).ToObject<string>();
+            var targetInfo = e.TargetInfo;
+            var sessionId = e.SessionId;
             if (targetInfo.Type != TargetType.Worker)
             {
                 try
@@ -1985,7 +1985,7 @@ namespace PuppeteerSharp
         private Task OnConsoleAPI(PageConsoleResponse message)
         {
             var ctx = _frameManager.ExecutionContextById(message.ExecutionContextId);
-            var values = message.Args.Select<RemoteObject, JSHandle>(i => ctx.CreateJSHandle(i)).ToArray();
+            var values = message.Args.Select(ctx.CreateJSHandle).ToArray();
             return AddConsoleMessage(message.Type, values);
         }
 
