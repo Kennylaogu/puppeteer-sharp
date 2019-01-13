@@ -74,7 +74,8 @@ namespace PuppeteerSharp
                : options.Referer;
             var requests = new Dictionary<string, Request>();
             var timeout = options?.Timeout ?? DefaultNavigationTimeout;
-            using (var watcher = new LifecycleWatcher(this, frame, timeout, options))
+
+            using (var watcher = new LifecycleWatcher(this, frame, options?.WaitUntil, timeout))
             {
                 try
                 {
@@ -121,7 +122,7 @@ namespace PuppeteerSharp
         public async Task<Response> WaitForFrameNavigationAsync(Frame frame, NavigationOptions options = null)
         {
             var timeout = options?.Timeout ?? DefaultNavigationTimeout;
-            using (var watcher = new LifecycleWatcher(this, frame, timeout, options))
+            using (var watcher = new LifecycleWatcher(this, frame, options?.WaitUntil, timeout))
             {
                 var raceTask = await Task.WhenAny(
                     watcher.NewDocumentNavigationTask,
@@ -146,13 +147,11 @@ namespace PuppeteerSharp
                 switch (e.MessageID)
                 {
                     case "Page.frameAttached":
-                        OnFrameAttached(
-                            e.MessageData.SelectToken(MessageKeys.FrameId).ToObject<string>(),
-                            e.MessageData.SelectToken("parentFrameId").ToObject<string>());
+                        OnFrameAttached(e.MessageData.ToObject<PageFrameAttachedResponse>());
                         break;
 
                     case "Page.frameNavigated":
-                        await OnFrameNavigatedAsync(e.MessageData.SelectToken(MessageKeys.Frame).ToObject<FramePayload>(true)).ConfigureAwait(false);
+                        await OnFrameNavigatedAsync(e.MessageData.ToObject<PageFrameNavigatedResponse>(true).Frame).ConfigureAwait(false);
                         break;
 
                     case "Page.navigatedWithinDocument":
@@ -168,11 +167,11 @@ namespace PuppeteerSharp
                         break;
 
                     case "Runtime.executionContextCreated":
-                        await OnExecutionContextCreatedAsync(e.MessageData.SelectToken(MessageKeys.Context).ToObject<ContextPayload>(true));
+                        await OnExecutionContextCreatedAsync(e.MessageData.ToObject<RuntimeExecutionContextCreatedResponse>(true).Context);
                         break;
 
                     case "Runtime.executionContextDestroyed":
-                        OnExecutionContextDestroyed(e.MessageData.SelectToken(MessageKeys.ExecutionContextId).ToObject<int>());
+                        OnExecutionContextDestroyed(e.MessageData.ToObject<RuntimeExecutionContextDestroyedResponse>(true).ExecutionContextId);
                         break;
                     case "Runtime.executionContextsCleared":
                         OnExecutionContextsCleared();
@@ -342,6 +341,9 @@ namespace PuppeteerSharp
             FrameDetached?.Invoke(this, new FrameEventArgs(frame));
         }
 
+        private void OnFrameAttached(PageFrameAttachedResponse frameAttached)
+            => OnFrameAttached(frameAttached.FrameId, frameAttached.ParentFrameId);
+
         private void OnFrameAttached(string frameId, string parentFrameId)
         {
             if (!_frames.ContainsKey(frameId) && _frames.ContainsKey(parentFrameId))
@@ -373,7 +375,7 @@ namespace PuppeteerSharp
 
         internal async Task<Frame> GetFrameAsync(string frameId)
         {
-            var tcs = new TaskCompletionSource<Frame>();
+            var tcs = new TaskCompletionSource<Frame>(TaskCreationOptions.RunContinuationsAsynchronously);
             _pendingFrameRequests.Add(frameId, tcs);
 
             if (_frames.TryGetValue(frameId, out var frame))
@@ -382,18 +384,7 @@ namespace PuppeteerSharp
                 return frame;
             }
 
-            var delayTask = Task.Delay(WaitForRequestDelay);
-            var task = Task.WhenAny(
-                delayTask,
-                tcs.Task
-            );
-
-            if (task == delayTask)
-            {
-                throw new PuppeteerException($"Frame '{frameId}' not found");
-            }
-
-            return await tcs.Task;
+            return await tcs.Task.WithTimeout(WaitForRequestDelay, new PuppeteerException($"Frame '{frameId}' not found"));
         }
 
         #endregion
