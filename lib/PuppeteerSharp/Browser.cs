@@ -192,12 +192,14 @@ namespace PuppeteerSharp
         /// <returns></returns>
         public async Task<Page> NewWindowAsync()
         {
-            var browser = Targets().First(x => x.Url == "about:blank");
-            var page = await browser.PageAsync();
-            var guid = Guid.NewGuid();
-            var url = $"about:blank?{guid}";
-            await page.EvaluateExpressionAsync($"window.open('{url}', '_blank', 'location=yes,resizable=yes,scrollbars=yes,status=yes');");
-            var target = DefaultContext.Targets().First(x => x.Url == url);
+            var guid = Guid.NewGuid().ToString("N");
+            Process.Start(Process.StartInfo.FileName, Process.StartInfo.Arguments.Replace("about:blank" , "file://" + guid) + " --new-window ");
+            Target target;
+            do
+            {
+                target = DefaultContext.Targets().FirstOrDefault(x => x.Url.Contains(guid));
+                await Task.Delay(50);
+            } while (target == null);
             return await target.PageAsync();
         }
 
