@@ -222,9 +222,15 @@ async function waitForPredicatePageFunction(predicateBody, polling, timeout, ...
 
         private void Cleanup()
         {
-            _cts.Cancel();
+            if (!_cts.IsCancellationRequested)
+            {
+	            _cts.Cancel();
+			}
             _cts?.Dispose();
-            _frame.WaitTasks.Remove(this);
+            if (_frame.WaitTasks.Contains(this))
+            {
+	            _frame.WaitTasks.Remove(this);
+            }
         }
     }
 }

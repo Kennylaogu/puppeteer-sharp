@@ -1617,6 +1617,10 @@ namespace PuppeteerSharp
             _networkManager.DomStorageItemRemoved += delegate (object sender, DomStorageItemRemovedEvent e)
             {
                 var storage = e.StorageId.IsLocalStorage ? LocalStorage : SessionStorage;
+                if (!storage.ContainsKey(e.StorageId.SecurityOrigin))
+                {
+	                return;
+                }
                 var list = storage[e.StorageId.SecurityOrigin];
                 var index = list.FindIndex(x => x.Key == e.Key);
                 if (index >= 0)
@@ -1628,6 +1632,10 @@ namespace PuppeteerSharp
             _networkManager.DomStorageItemUpdated += delegate (object sender, DomStorageItemUpdatedEvent e)
             {
                 var storage = e.StorageId.IsLocalStorage ? LocalStorage : SessionStorage;
+                if (!storage.ContainsKey(e.StorageId.SecurityOrigin))
+                {
+                    return;
+                }
                 var list = storage[e.StorageId.SecurityOrigin];
                 var item = list.FirstOrDefault(x => x.Key == e.Key);
                 if (item == null)
@@ -1643,6 +1651,10 @@ namespace PuppeteerSharp
             _networkManager.DomStorageItemsCleared += delegate (object sender, DomStorageItemsClearedEvent e)
             {
                 var storage = e.StorageId.IsLocalStorage ? LocalStorage : SessionStorage;
+                if (!storage.ContainsKey(e.StorageId.SecurityOrigin))
+                {
+	                return;
+                }
                 var list = storage[e.StorageId.SecurityOrigin];
                 list.Clear();
             };
