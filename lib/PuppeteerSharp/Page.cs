@@ -304,6 +304,11 @@ namespace PuppeteerSharp
         public Browser Browser => Target.Browser;
 
         /// <summary>
+        /// Get the browser context that the page belongs to.
+        /// </summary>
+        public BrowserContext BrowserContext => Target.BrowserContext;
+
+        /// <summary>
         /// Get an indication that the page has been closed.
         /// </summary>
         public bool IsClosed { get; private set; }
@@ -1026,6 +1031,14 @@ namespace PuppeteerSharp
                 {
                     throw new ArgumentException($"Expected options.quality to be between 0 and 100 (inclusive), got {options.Quality}");
                 }
+            }
+            if (options?.Clip?.Width == 0)
+            {
+                throw new PuppeteerException("Expected options.Clip.Width not to be 0.");
+            }
+            if (options?.Clip?.Height == 0)
+            {
+                throw new PuppeteerException("Expected options.Clip.Height not to be 0.");
             }
 
             if (options.Clip != null && options.FullPage)
@@ -2088,6 +2101,10 @@ namespace PuppeteerSharp
 
         private Task OnConsoleAPI(PageConsoleResponse message)
         {
+            if (message.ExecutionContextId == 0)
+            {
+                return Task.CompletedTask;
+            }
             var ctx = _frameManager.ExecutionContextById(message.ExecutionContextId);
             var values = message.Args.Select(ctx.CreateJSHandle).ToArray();
             return AddConsoleMessage(message.Type, values);
@@ -2097,11 +2114,7 @@ namespace PuppeteerSharp
         {
             if (Console?.GetInvocationList().Length == 0)
             {
-                foreach (var arg in values)
-                {
-                    await RemoteObjectHelper.ReleaseObjectAsync(Client, arg.RemoteObject, _logger).ConfigureAwait(false);
-                }
-
+                await Task.WhenAll(values.Select(v => RemoteObjectHelper.ReleaseObjectAsync(Client, v.RemoteObject, _logger))).ConfigureAwait(false);
                 return;
             }
 
