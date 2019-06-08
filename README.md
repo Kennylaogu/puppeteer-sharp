@@ -23,9 +23,8 @@ Puppeteer Sharp is a .NET port of the official [Node.JS Puppeteer API](https://g
 
 # Prerequisites
 
- * As Puppeteer-Sharp is a NetStandard 2.0 library, The minimum platform versions are .NET Framework 4.6.1 and .NET Core 2.0. [Read more](https://docs.microsoft.com/en-us/dotnet/standard/net-standard).
+ * As Puppeteer-Sharp is a NetStandard 2.0 library, the minimum platform versions are .NET Framework 4.6.1 and .NET Core 2.0. [Read more](https://docs.microsoft.com/en-us/dotnet/standard/net-standard).
  * The minimum **Windows** versions supporting the WebSocket library are Windows 8 and Windows Server 2012. [Read more](https://docs.microsoft.com/en-us/dotnet/api/system.net.websockets?redirectedfrom=MSDN&view=netframework-4.7.2).
- * Mono is required on **Linux**. Read more about installing Mono [here](https://www.mono-project.com/download/stable/#download-lin-ubuntu).
  * If you have issues running Chrome on Linux, the Puppeteer repo has a [great troubleshooting guide](https://github.com/GoogleChrome/puppeteer/blob/master/docs/troubleshooting.md).
 
  # How to Contribute and Provide Feedback
@@ -120,7 +119,7 @@ using (var page = await browser.NewPageAsync())
 using (var page = await browser.NewPageAsync())
 {
     await page.GoToAsync("http://www.spapage.com");
-    var watchDog = page.WaitForFunctionAsync("window.innerWidth < 100");
+    var watchDog = page.WaitForFunctionAsync("()=> window.innerWidth < 100");
     await page.SetViewportAsync(new ViewPortOptions { Width = 50, Height = 50 });
     await watchDog;
 }
@@ -147,6 +146,8 @@ using (var browser = await PuppeteerSharp.Puppeteer.ConnectAsync(options))
 ```
 
 # Monthly reports
+ * [April 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-apr-2019)
+ * [March 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-mar-2019)
  * [February 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-feb-2019)
  * [January 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-jan-2019)
  * [December 2018](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-dec-2018)
@@ -165,6 +166,9 @@ using (var browser = await PuppeteerSharp.Puppeteer.ConnectAsync(options))
 Support us with a monthly donation and help us continue our activities. [Become a backer](https://opencollective.com/puppeteer-sharp).
 
 <a href="https://opencollective.com/puppeteer-sharp/backer/0/website" target="_blank"><img src="https://opencollective.com/puppeteer-sharp/backer/0/avatar.svg"></a>
+<a href="https://opencollective.com/puppeteer-sharp/backer/1/website" target="_blank"><img src="https://opencollective.com/puppeteer-sharp/backer/1/avatar.svg"></a>
+<a href="https://opencollective.com/puppeteer-sharp/backer/2/website" target="_blank"><img src="https://opencollective.com/puppeteer-sharp/backer/2/avatar.svg"></a>
+<a href="https://opencollective.com/puppeteer-sharp/backer/3/website" target="_blank"><img src="https://opencollective.com/puppeteer-sharp/backer/3/avatar.svg"></a>
 
 # Thanks
 

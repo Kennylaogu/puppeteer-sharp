@@ -30,7 +30,7 @@ namespace PuppeteerSharp
             "--disable-default-apps",
             "--disable-dev-shm-usage",
             "--disable-extensions",
-            "--disable-features=site-per-process,TranslateUI",
+            "--disable-features=site-per-process,TranslateUI,BlinkGenPropertyTrees",
             "--disable-hang-monitor",
             "--disable-ipc-flooding-protection",
             "--disable-popup-blocking",
@@ -40,7 +40,6 @@ namespace PuppeteerSharp
             "--force-color-profile=srgb",
             "--metrics-recording-only",
             "--no-first-run",
-            "--safebrowsing-disable-auto-update",
             "--enable-automation",
             "--password-store=basic",
             "--use-mock-keychain"
@@ -193,7 +192,7 @@ namespace PuppeteerSharp
                 await _exitCompletionSource.Task.WithTimeout(() =>
                 {
                     taskCompleted = false;
-                }, timeout.Value.Milliseconds).ConfigureAwait(false);
+                }, timeout.Value).ConfigureAwait(false);
                 return taskCompleted;
             }
 
@@ -523,13 +522,8 @@ namespace PuppeteerSharp
                         }
                     }
                     void OnProcessExitedWhileStarting(object sender, EventArgs e)
-                    {
-                        p._startCompletionSource.SetException(new ChromiumProcessException($"Failed to launch Chromium! {output}"));
-                    }
-                    void OnProcessExited(object sender, EventArgs e)
-                    {
-                        Exited.EnterFrom(p, p._currentState);
-                    }
+                        => p._startCompletionSource.TrySetException(new ChromiumProcessException($"Failed to launch Chromium! {output}"));
+                    void OnProcessExited(object sender, EventArgs e) => Exited.EnterFrom(p, p._currentState);
 
                     p.Process.ErrorDataReceived += OnProcessDataReceivedWhileStarting;
                     p.Process.Exited += OnProcessExitedWhileStarting;
@@ -616,7 +610,7 @@ namespace PuppeteerSharp
                     {
                         await Killing.EnterFromAsync(p, this).ConfigureAwait(false);
                         await waitForExitTask.ConfigureAwait(false);
-                    }, timeout.Minutes).ConfigureAwait(false);
+                    }, timeout).ConfigureAwait(false);
                 }
 
                 public override Task KillAsync(ChromiumProcess p) => Killing.EnterFromAsync(p, this);

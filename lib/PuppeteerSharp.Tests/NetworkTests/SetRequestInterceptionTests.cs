@@ -11,7 +11,7 @@ using Xunit;
 using Xunit.Abstractions;
 using PuppeteerSharp.Helpers;
 
-namespace PuppeteerSharp.Tests.PageTests
+namespace PuppeteerSharp.Tests.NetworkTests
 {
     [Collection("PuppeteerLoaderFixture collection")]
     public class SetRequestInterceptionTests : PuppeteerPageBaseTest
@@ -26,6 +26,11 @@ namespace PuppeteerSharp.Tests.PageTests
             await Page.SetRequestInterceptionAsync(true);
             Page.Request += async (sender, e) =>
             {
+                if (TestUtils.IsFavicon(e.Request))
+                {
+                    await e.Request.ContinueAsync();
+                    return;
+                }
                 Assert.Contains("empty.html", e.Request.Url);
                 Assert.NotNull(e.Request.Headers);
                 Assert.Equal(HttpMethod.Get, e.Request.Method);
@@ -40,31 +45,6 @@ namespace PuppeteerSharp.Tests.PageTests
             Assert.True(response.Ok);
 
             Assert.Equal(TestConstants.Port, response.RemoteAddress.Port);
-        }
-
-        [Fact]
-        public async Task ShouldWorkWithInterventionHeaders()
-        {
-            Server.SetRoute("/intervention", context => context.Response.WriteAsync($@"
-              <script>
-                document.write('<script src=""{TestConstants.CrossProcessHttpPrefix}/intervention.js"">' + '</scr' + 'ipt>');
-              </script>
-            "));
-            Server.SetRedirect("/intervention.js", "/redirect.js");
-
-            string interventionHeader = null;
-            Server.SetRoute("/redirect.js", context =>
-            {
-                interventionHeader = context.Request.Headers["intervention"];
-                return context.Response.WriteAsync("console.log(1);");
-            });
-
-            await Page.SetRequestInterceptionAsync(true);
-            Page.Request += async (sender, e) => await e.Request.ContinueAsync();
-            
-            await Page.GoToAsync(TestConstants.ServerUrl + "/intervention");
-            
-            Assert.Contains("www.chromestatus.com", interventionHeader);
         }
 
         [Fact]
@@ -87,6 +67,22 @@ namespace PuppeteerSharp.Tests.PageTests
         }
 
         [Fact]
+        public async Task ShouldWorkWhenHeaderManipulationHeadersWithRedirect()
+        {
+            Server.SetRedirect("/rredirect", "/empty.html");
+            await Page.SetRequestInterceptionAsync(true);
+
+            Page.Request += async (sender, e) =>
+            {
+                var headers = e.Request.Headers.Clone();
+                headers["foo"] = "bar";
+                await e.Request.ContinueAsync(new Payload { Headers = headers });
+            };
+
+            await Page.GoToAsync(TestConstants.ServerUrl + "/rrredirect");
+        }
+
+        [Fact]
         public async Task ShouldContainRefererHeader()
         {
             await Page.SetRequestInterceptionAsync(true);
@@ -95,13 +91,16 @@ namespace PuppeteerSharp.Tests.PageTests
 
             Page.Request += async (sender, e) =>
             {
-                await e.Request.ContinueAsync();
-                requests.Add(e.Request);
-
-                if (requests.Count > 1)
+                if (!TestUtils.IsFavicon(e.Request))
                 {
-                    requestsReadyTcs.TrySetResult(true);
+                    requests.Add(e.Request);
+
+                    if (requests.Count > 1)
+                    {
+                        requestsReadyTcs.TrySetResult(true);
+                    }
                 }
+                await e.Request.ContinueAsync();
             };
 
             await Page.GoToAsync(TestConstants.ServerUrl + "/one-style.html");
@@ -158,6 +157,24 @@ namespace PuppeteerSharp.Tests.PageTests
             };
             var response = await Page.GoToAsync(TestConstants.EmptyPage);
             Assert.True(response.Ok);
+        }
+
+        [Fact(Skip = "https://github.com/GoogleChrome/puppeteer/issues/4337")]
+        public async Task ShouldWorkWithRedirectInsideSyncXHR()
+        {
+            await Page.GoToAsync(TestConstants.EmptyPage);
+            Server.SetRedirect("/logo.png", "/pptr.png");
+            await Page.SetRequestInterceptionAsync(true);
+            Page.Request += async (sender, e) => await e.Request.ContinueAsync();
+
+            var status = await Page.EvaluateFunctionAsync<int>(@"async () =>
+            {
+                const request = new XMLHttpRequest();
+                request.open('GET', '/logo.png', false);  // `false` makes the request synchronous
+                request.send(null);
+                return request.status;
+            }");
+            Assert.Equal(200, status);
         }
 
         [Fact]
@@ -233,55 +250,6 @@ namespace PuppeteerSharp.Tests.PageTests
         }
 
         [Fact]
-        public async Task ShouldAmendHTTPHeaders()
-        {
-            await Page.SetRequestInterceptionAsync(true);
-            Page.Request += async (sender, e) =>
-            {
-                var headers = new Dictionary<string, string>(e.Request.Headers)
-                {
-                    ["FOO"] = "bar"
-                };
-                await e.Request.ContinueAsync(new Payload { Headers = headers });
-            };
-            await Page.GoToAsync(TestConstants.EmptyPage);
-            var requestTask = Server.WaitForRequest("/sleep.zzz", request => request.Headers["foo"].ToString());
-            await Task.WhenAll(
-                requestTask,
-                Page.EvaluateExpressionAsync("fetch('/sleep.zzz')")
-            );
-            Assert.Equal("bar", requestTask.Result);
-        }
-
-        [Fact]
-        public async Task ShouldAmendPostData()
-        {
-            await Page.SetRequestInterceptionAsync(true);
-            Page.Request += async (sender, e) =>
-            {
-                await e.Request.ContinueAsync(new Payload
-                {
-                    Method = HttpMethod.Post,
-                    PostData = "FooBar"
-                });
-            };
-            var requestTask = Server.WaitForRequest("/sleep.zzz", async request =>
-            {
-                using (var reader = new StreamReader(request.Body, Encoding.UTF8))
-                {
-                    return await reader.ReadToEndAsync();
-                }
-            });
-
-            await Task.WhenAll(
-                requestTask,
-                Page.GoToAsync(TestConstants.ServerUrl + "/sleep.zzz")
-            );
-
-            Assert.Equal("FooBar", await requestTask.Result);
-        }
-
-        [Fact]
         public async Task ShouldFailNavigationWhenAbortingMainResource()
         {
             await Page.SetRequestInterceptionAsync(true);
@@ -333,7 +301,11 @@ namespace PuppeteerSharp.Tests.PageTests
             var requests = new List<Request>();
             Page.Request += async (sender, e) =>
             {
-                requests.Add(e.Request);
+                if (!TestUtils.IsFavicon(e.Request))
+                {
+                    requests.Add(e.Request);
+                }
+
                 await e.Request.ContinueAsync();
             };
 
@@ -402,6 +374,12 @@ namespace PuppeteerSharp.Tests.PageTests
             // Cancel 2nd request.
             Page.Request += async (sender, e) =>
             {
+                if (TestUtils.IsFavicon(e.Request))
+                {
+                    await e.Request.ContinueAsync();
+                    return;
+                }
+
                 if (spinner)
                 {
                     spinner = !spinner;

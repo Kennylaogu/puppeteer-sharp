@@ -63,8 +63,8 @@ namespace PuppeteerSharp
             WaitTasks = new List<WaitTask>();
             LifecycleEvents = new List<string>();
 
-            MainWorld = new DOMWorld(FrameManager, this);
-            SecondaryWorld = new DOMWorld(FrameManager, this);
+            MainWorld = new DOMWorld(FrameManager, this, FrameManager.TimeoutSettings);
+            SecondaryWorld = new DOMWorld(FrameManager, this, FrameManager.TimeoutSettings);
         }
 
         #region Properties
@@ -246,8 +246,18 @@ namespace PuppeteerSharp
         /// <seealso cref="WaitForXPathAsync(string, WaitForSelectorOptions)"/>
         /// <seealso cref="Page.WaitForSelectorAsync(string, WaitForSelectorOptions)"/>
         /// <exception cref="WaitTaskTimeoutException">If timeout occurred.</exception>
-        public Task<ElementHandle> WaitForSelectorAsync(string selector, WaitForSelectorOptions options = null)
-            => MainWorld.WaitForSelectorAsync(selector, options);
+        public async Task<ElementHandle> WaitForSelectorAsync(string selector, WaitForSelectorOptions options = null)
+        {
+            var handle = await SecondaryWorld.WaitForSelectorAsync(selector, options).ConfigureAwait(false);
+            if (handle == null)
+            {
+                return null;
+            }
+            var mainExecutionContext = await MainWorld.GetExecutionContextAsync().ConfigureAwait(false);
+            var result = await mainExecutionContext.AdoptElementHandleASync(handle).ConfigureAwait(false);
+            await handle.DisposeAsync().ConfigureAwait(false);
+            return result;
+        }
 
         /// <summary>
         /// Waits for a selector to be added to the DOM
@@ -277,8 +287,18 @@ namespace PuppeteerSharp
         /// <seealso cref="WaitForSelectorAsync(string, WaitForSelectorOptions)"/>
         /// <seealso cref="Page.WaitForXPathAsync(string, WaitForSelectorOptions)"/>
         /// <exception cref="WaitTaskTimeoutException">If timeout occurred.</exception>
-        public Task<ElementHandle> WaitForXPathAsync(string xpath, WaitForSelectorOptions options = null)
-            => MainWorld.WaitForXPathAsync(xpath, options);
+        public async Task<ElementHandle> WaitForXPathAsync(string xpath, WaitForSelectorOptions options = null)
+        {
+            var handle = await SecondaryWorld.WaitForXPathAsync(xpath, options).ConfigureAwait(false);
+            if (handle == null)
+            {
+                return null;
+            }
+            var mainExecutionContext = await MainWorld.GetExecutionContextAsync().ConfigureAwait(false);
+            var result = await mainExecutionContext.AdoptElementHandleASync(handle).ConfigureAwait(false);
+            await handle.DisposeAsync().ConfigureAwait(false);
+            return result;
+        }
 
         /// <summary>
         /// Waits for a timeout
@@ -355,7 +375,8 @@ namespace PuppeteerSharp
         /// <returns>Task which resolves to the added tag when the stylesheet's onload fires or when the CSS content was injected into frame</returns>
         /// <seealso cref="Page.AddStyleTagAsync(AddTagOptions)"/>
         /// <seealso cref="Page.AddStyleTagAsync(string)"/>
-        public Task<ElementHandle> AddStyleTag(AddTagOptions options) => MainWorld.AddStyleTag(options);
+        [Obsolete("Use AddStyleTagAsync instead")]
+        public Task<ElementHandle> AddStyleTag(AddTagOptions options) => MainWorld.AddStyleTagAsync(options);
 
         /// <summary>
         /// Adds a <c><![CDATA[<script>]]></c> tag into the page with the desired url or content
@@ -364,7 +385,26 @@ namespace PuppeteerSharp
         /// <returns>Task which resolves to the added tag when the script's onload fires or when the script content was injected into frame</returns>
         /// <seealso cref="Page.AddScriptTagAsync(AddTagOptions)"/>
         /// <seealso cref="Page.AddScriptTagAsync(string)"/>
-        public Task<ElementHandle> AddScriptTag(AddTagOptions options) => MainWorld.AddScriptTag(options);
+        [Obsolete("Use AddScriptTagAsync instead")]
+        public Task<ElementHandle> AddScriptTag(AddTagOptions options) => MainWorld.AddScriptTagAsync(options);
+
+        /// <summary>
+        /// Adds a <c><![CDATA[<link rel="stylesheet">]]></c> tag into the page with the desired url or a <c><![CDATA[<link rel="stylesheet">]]></c> tag with the content
+        /// </summary>
+        /// <param name="options">add style tag options</param>
+        /// <returns>Task which resolves to the added tag when the stylesheet's onload fires or when the CSS content was injected into frame</returns>
+        /// <seealso cref="Page.AddStyleTagAsync(AddTagOptions)"/>
+        /// <seealso cref="Page.AddStyleTagAsync(string)"/>
+        public Task<ElementHandle> AddStyleTagAsync(AddTagOptions options) => MainWorld.AddStyleTagAsync(options);
+
+        /// <summary>
+        /// Adds a <c><![CDATA[<script>]]></c> tag into the page with the desired url or content
+        /// </summary>
+        /// <param name="options">add script tag options</param>
+        /// <returns>Task which resolves to the added tag when the script's onload fires or when the script content was injected into frame</returns>
+        /// <seealso cref="Page.AddScriptTagAsync(AddTagOptions)"/>
+        /// <seealso cref="Page.AddScriptTagAsync(string)"/>
+        public Task<ElementHandle> AddScriptTagAsync(AddTagOptions options) => MainWorld.AddScriptTagAsync(options);
 
         /// <summary>
         /// Gets the full HTML contents of the page, including the doctype.

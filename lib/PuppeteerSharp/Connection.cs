@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Linq;
-using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -20,6 +19,7 @@ namespace PuppeteerSharp
     public class Connection : IDisposable
     {
         private readonly ILogger _logger;
+        private TaskQueue _callbackQueue = new TaskQueue();
 
         internal Connection(string url, int delay, IConnectionTransport transport, ILoggerFactory loggerFactory = null)
         {
@@ -91,13 +91,16 @@ namespace PuppeteerSharp
 
         internal int GetMessageID() => Interlocked.Increment(ref _lastId);
         internal Task RawSendASync(int id, string method, object args, string sessionId = null)
-            => Transport.SendAsync(JsonConvert.SerializeObject(new ConnectionRequest
+        {
+            _logger.LogTrace("Send ► {Id} Method {Method} Params {@Params}", id, method, args);
+            return Transport.SendAsync(JsonConvert.SerializeObject(new ConnectionRequest
             {
                 Id = id,
                 Method = method,
                 Params = args,
                 SessionId = sessionId
             }, JsonHelper.DefaultJsonSerializerSettings));
+        }
 
         internal async Task<JObject> SendAsync(string method, object args = null, bool waitForCallback = true)
         {
@@ -107,7 +110,6 @@ namespace PuppeteerSharp
             }
 
             var id = GetMessageID();
-            _logger.LogTrace("Send ► {Id} Method {Method} Params {@Params}", id, method, (object)args);
 
             MessageTask callback = null;
             if (waitForCallback)
@@ -177,7 +179,9 @@ namespace PuppeteerSharp
 
         #region Private Methods
 
-        private async void Transport_MessageReceived(object sender, MessageReceivedEventArgs e)
+        private async void Transport_MessageReceived(object sender, MessageReceivedEventArgs e) => await _callbackQueue.Enqueue(() => ProcessMessage(e));
+
+        private async Task ProcessMessage(MessageReceivedEventArgs e)
         {
             try
             {
@@ -270,21 +274,19 @@ namespace PuppeteerSharp
         /// <summary>
         /// Gets default web socket factory implementation.
         /// </summary>
-        public static readonly Func<Uri, IConnectionOptions, CancellationToken, Task<WebSocket>> DefaultWebSocketFactory = async (uri, options, cancellationToken) =>
+        [Obsolete("Use " + nameof(WebSocketTransport) + "." + nameof(WebSocketTransport.DefaultWebSocketFactory) + " instead")]
+        public static readonly WebSocketFactory DefaultWebSocketFactory = WebSocketTransport.DefaultWebSocketFactory;
+
+        internal static async Task<Connection> Create(string url, IConnectionOptions connectionOptions, ILoggerFactory loggerFactory = null, CancellationToken cancellationToken = default)
         {
-            var result = new ClientWebSocket();
-            result.Options.KeepAliveInterval = TimeSpan.Zero;
-            await result.ConnectAsync(uri, cancellationToken).ConfigureAwait(false);
-            return result;
-        };
-
-        internal static async Task<Connection> Create(string url, IConnectionOptions connectionOptions, ILoggerFactory loggerFactory = null)
-        {
-            var transport = connectionOptions.Transport ?? new WebSocketTransport();
-            connectionOptions.WebSocketFactory = connectionOptions.WebSocketFactory ?? DefaultWebSocketFactory;
-
-            await transport.InitializeAsync(url, connectionOptions).ConfigureAwait(false);
-
+#pragma warning disable 618
+            var transport = connectionOptions.Transport;
+#pragma warning restore 618
+            if (transport == null)
+            {
+                var transportFactory = connectionOptions.TransportFactory ?? WebSocketTransport.DefaultTransportFactory;
+                transport = await transportFactory(new Uri(url), connectionOptions, cancellationToken);
+            }
             return new Connection(url, connectionOptions.SlowMo, transport, loggerFactory);
         }
 

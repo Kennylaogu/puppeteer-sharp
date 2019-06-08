@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -46,6 +47,36 @@ namespace PuppeteerSharp.Tests.PageTests
         }
 
         [Fact]
+        public async Task ShouldRespectTimeout()
+        {
+            const string imgPath = "/img.png";
+            Server.SetRoute(imgPath, context => Task.Delay(-1));
+
+            await Page.GoToAsync(TestConstants.EmptyPage);
+            var exception = await Assert.ThrowsAnyAsync<TimeoutException>(async () =>
+                await Page.SetContentAsync($"<img src='{TestConstants.ServerUrl + imgPath}'></img>", new NavigationOptions
+                {
+                    Timeout = 1
+                }));
+
+            Assert.Contains("Timeout Exceeded: 1ms", exception.Message);
+        }
+
+        [Fact]
+        public async Task ShouldRespectDefaultTimeout()
+        {
+            const string imgPath = "/img.png";
+            Server.SetRoute(imgPath, context => Task.Delay(-1));
+
+            await Page.GoToAsync(TestConstants.EmptyPage);
+            Page.DefaultTimeout = 1;
+            var exception = await Assert.ThrowsAnyAsync<TimeoutException>(async () =>
+                await Page.SetContentAsync($"<img src='{TestConstants.ServerUrl + imgPath}'></img>"));
+
+            Assert.Contains("Timeout Exceeded: 1ms", exception.Message);
+        }
+
+        [Fact]
         public async Task ShouldAwaitResourcesToLoad()
         {
             var imgPath = "/img.png";
@@ -68,6 +99,34 @@ namespace PuppeteerSharp.Tests.PageTests
             {
                 await Page.SetContentAsync("<div>yo</div>");
             }
+        }
+
+        [Fact]
+        public async Task ShouldWorkWithTrickyContent()
+        {
+            await Page.SetContentAsync("<div>hello world</div>\x7F");
+            Assert.Equal("hello world", await Page.QuerySelectorAsync("div").EvaluateFunctionAsync<string>("div => div.textContent"));
+        }
+
+        [Fact]
+        public async Task ShouldWorkWithAccents()
+        {
+            await Page.SetContentAsync("<div>aberración</div>");
+            Assert.Equal("aberración", await Page.QuerySelectorAsync("div").EvaluateFunctionAsync<string>("div => div.textContent"));
+        }
+
+        [Fact]
+        public async Task ShouldWorkWithEmojis()
+        {
+            await Page.SetContentAsync("<div>🐥</div>");
+            Assert.Equal("🐥", await Page.QuerySelectorAsync("div").EvaluateFunctionAsync<string>("div => div.textContent"));
+        }
+
+        [Fact]
+        public async Task ShouldWorkWithNewline()
+        {
+            await Page.SetContentAsync("<div>\n</div>");
+            Assert.Equal("\n", await Page.QuerySelectorAsync("div").EvaluateFunctionAsync<string>("div => div.textContent"));
         }
     }
 }
