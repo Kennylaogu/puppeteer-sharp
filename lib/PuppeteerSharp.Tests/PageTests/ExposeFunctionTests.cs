@@ -6,7 +6,7 @@ using Xunit.Abstractions;
 
 namespace PuppeteerSharp.Tests.PageTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class ExposeFunctionTests : PuppeteerPageBaseTest
     {
         public ExposeFunctionTests(ITestOutputHelper output) : base(output)
@@ -44,7 +44,7 @@ namespace PuppeteerSharp.Tests.PageTests
         {
             var called = false;
             await Page.ExposeFunctionAsync("woof", () => called = true);
-            await Page.EvaluateOnNewDocumentAsync("() => woof()");
+            await Page.EvaluateFunctionOnNewDocumentAsync("() => woof()");
             await Page.ReloadAsync();
             Assert.True(called);
         }

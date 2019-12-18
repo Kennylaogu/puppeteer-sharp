@@ -17,14 +17,14 @@ Puppeteer Sharp is a .NET port of the official [Node.JS Puppeteer API](https://g
 # Useful links
 
 * [API Documentation](http://www.puppeteersharp.com/api/index.html)
-* Slack channel [#puppeteer-sharp](https://join.slack.com/t/puppeteer/shared_invite/enQtMzU4MjIyMDA5NTM4LTM1OTdkNDhlM2Y4ZGUzZDdjYjM5ZWZlZGFiZjc4MTkyYTVlYzIzYjU5NDIyNzgyMmFiNDFjN2UzNWU0N2ZhZDc)
+* Slack channel [#puppeteer-sharp](https://puppeteer.slack.com/join/shared_invite/enQtMzU4MjIyMDA5NTM4LWI0YTE0MjM0NWQzYmE2MTRmNjM1ZTBkN2MxNmJmNTIwNTJjMmFhOWFjMGExMDViYjk2YjU2ZmYzMmE1NmExYzc)
 * [StackOverflow](https://stackoverflow.com/search?q=puppeteer-sharp)
 * [Issues](https://github.com/kblok/puppeteer-sharp/issues?utf8=%E2%9C%93&q=is%3Aissue)
 
 # Prerequisites
 
  * As Puppeteer-Sharp is a NetStandard 2.0 library, the minimum platform versions are .NET Framework 4.6.1 and .NET Core 2.0. [Read more](https://docs.microsoft.com/en-us/dotnet/standard/net-standard).
- * The minimum **Windows** versions supporting the WebSocket library are Windows 8 and Windows Server 2012. [Read more](https://docs.microsoft.com/en-us/dotnet/api/system.net.websockets?redirectedfrom=MSDN&view=netframework-4.7.2).
+ * The minimum **Windows** versions supporting the WebSocket library are Windows 8 and Windows Server 2012. [Read more](https://docs.microsoft.com/en-us/dotnet/api/system.net.websockets?redirectedfrom=MSDN&view=netframework-4.7.2). If you need to run Puppeteer-Sharp on Windows 7 you can use [System.Net.WebSockets.Client.Managed](https://www.nuget.org/packages/System.Net.WebSockets.Client.Managed/) through the [LaunchOptions.WebSocketFactory](https://www.puppeteersharp.com/api/PuppeteerSharp.LaunchOptions.html#PuppeteerSharp_LaunchOptions_WebSocketFactory) property.
  * If you have issues running Chrome on Linux, the Puppeteer repo has a [great troubleshooting guide](https://github.com/GoogleChrome/puppeteer/blob/master/docs/troubleshooting.md).
 
  # How to Contribute and Provide Feedback
@@ -97,7 +97,7 @@ using(var page = await browser.NewPageAsync())
 ```cs
 using (var page = await browser.NewPageAsync())
 {
-    var seven = await page.EvaluateFunctionAsync<int>("4 + 3");
+    var seven = await page.EvaluateExpressionAsync<int>("4 + 3");
     var someObject = await page.EvaluateFunctionAsync<dynamic>("(value) => ({a: value})", 5);
     Console.WriteLine(someObject.a);
 }
@@ -146,20 +146,14 @@ using (var browser = await PuppeteerSharp.Puppeteer.ConnectAsync(options))
 ```
 
 # Monthly reports
+ * [August 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-aug-2019)
+ * [July 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-jul-2019)
+ * [June 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-jun-2019)
+ * [May 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-may-2019)
  * [April 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-apr-2019)
  * [March 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-mar-2019)
  * [February 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-feb-2019)
  * [January 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-jan-2019)
- * [December 2018](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-dec-2018)
- * [November 2018](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-nov-2018)
- * [October 2018](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-oct-2018)
- * [September 2018](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-sep-2018)
- * [July 2018](https://www.hardkoded.com/blog/puppeteer-sharp-monthly-jul-2018)
- * [June 2018](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-jun-2018)
- * [May 2018](http://www.hardkoded.com/blogs/puppeteer-sharp-monthly-may-2018)
- * [April 2018](http://www.hardkoded.com/blogs/puppeteer-sharp-monthly-april-2018)
- * [March 2018](http://www.hardkoded.com/blogs/puppeteer-sharp-monthly-march-2018)
- * [February 2018](http://www.hardkoded.com/blogs/puppeteer-sharp-monthly-february-2018)
 
 # Backers
 
@@ -169,6 +163,7 @@ Support us with a monthly donation and help us continue our activities. [Become 
 <a href="https://opencollective.com/puppeteer-sharp/backer/1/website" target="_blank"><img src="https://opencollective.com/puppeteer-sharp/backer/1/avatar.svg"></a>
 <a href="https://opencollective.com/puppeteer-sharp/backer/2/website" target="_blank"><img src="https://opencollective.com/puppeteer-sharp/backer/2/avatar.svg"></a>
 <a href="https://opencollective.com/puppeteer-sharp/backer/3/website" target="_blank"><img src="https://opencollective.com/puppeteer-sharp/backer/3/avatar.svg"></a>
+<a href="https://opencollective.com/puppeteer-sharp/backer/3/website" target="_blank"><img src="https://opencollective.com/puppeteer-sharp/backer/4/avatar.svg"></a>
 
 # Thanks
 

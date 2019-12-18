@@ -7,7 +7,7 @@ using Xunit.Abstractions;
 
 namespace PuppeteerSharp.Tests.InputTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class InputTests : PuppeteerPageBaseTest
     {
         private const string Dimensions = @"function dimensions() {
@@ -38,7 +38,7 @@ namespace PuppeteerSharp.Tests.InputTests
         public async Task ShouldUploadTheFile()
         {
             await Page.GoToAsync(TestConstants.ServerUrl + "/input/fileupload.html");
-            var filePath = "./Assets/file-to-upload.txt";
+            var filePath = TestConstants.FileToUpload;
             var input = await Page.QuerySelectorAsync("input");
             await input.UploadFileAsync(filePath);
             Assert.Equal("file-to-upload.txt", await Page.EvaluateFunctionAsync<string>("e => e.files[0].name", input));
@@ -154,7 +154,7 @@ namespace PuppeteerSharp.Tests.InputTests
             }, await Page.EvaluateExpressionAsync<int[][]>("result"));
         }
 
-        [Fact(Skip = "see https://crbug.com/929806")]
+        [Fact]
         public async Task ShouldWorkWithMobileViewportsAndCrossProcessNavigations()
         {
             await Page.GoToAsync(TestConstants.EmptyPage);

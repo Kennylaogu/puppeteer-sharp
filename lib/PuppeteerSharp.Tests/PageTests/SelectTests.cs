@@ -5,7 +5,7 @@ using Xunit.Abstractions;
 
 namespace PuppeteerSharp.Tests.PageTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class SelectTests : PuppeteerPageBaseTest
     {
         public SelectTests(ITestOutputHelper output) : base(output)
@@ -28,6 +28,18 @@ namespace PuppeteerSharp.Tests.PageTests
             await Page.SelectAsync("select", "blue", "green", "red");
             Assert.Equal(new string[] { "blue" }, await Page.EvaluateExpressionAsync<string[]>("result.onInput"));
             Assert.Equal(new string[] { "blue" }, await Page.EvaluateExpressionAsync<string[]>("result.onChange"));
+        }
+
+        [Fact]
+        public async Task ShouldNotThrowWhenSelectCausesNavigation()
+        {
+            await Page.GoToAsync(TestConstants.ServerUrl + "/input/select.html");
+            await Page.QuerySelectorAsync("select").EvaluateFunctionAsync("select => select.addEventListener('input', () => window.location = '/empty.html')");
+            await Task.WhenAll(
+              Page.SelectAsync("select", "blue"),
+              Page.WaitForNavigationAsync()
+            );
+            Assert.Contains("empty.html", Page.Url);
         }
 
         [Fact]

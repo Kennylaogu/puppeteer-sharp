@@ -6,7 +6,7 @@ using PuppeteerSharp.Helpers;
 
 namespace PuppeteerSharp.Tests.PageTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class WaitForRequestTests : PuppeteerPageBaseTest
     {
         public WaitForRequestTests(ITestOutputHelper output) : base(output)
@@ -57,7 +57,7 @@ namespace PuppeteerSharp.Tests.PageTests
                     Timeout = 1
                 }));
 
-            Assert.Contains("Timeout Exceeded: 1ms", exception.Message);
+            Assert.Contains("Timeout of 1 ms exceeded", exception.Message);
         }
 
         [Fact]
@@ -68,7 +68,7 @@ namespace PuppeteerSharp.Tests.PageTests
             var exception = await Assert.ThrowsAnyAsync<TimeoutException>(async () =>
                 await Page.WaitForRequestAsync(request => false));
 
-            Assert.Contains("Timeout Exceeded: 1ms", exception.Message);
+            Assert.Contains("Timeout of 1 ms exceeded", exception.Message);
         }
 
         [Fact]

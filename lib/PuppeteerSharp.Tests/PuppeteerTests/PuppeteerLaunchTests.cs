@@ -12,7 +12,7 @@ using Xunit.Abstractions;
 
 namespace PuppeteerSharp.Tests.PuppeteerTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class PuppeteerLaunchTests : PuppeteerBaseTest
     {
         public PuppeteerLaunchTests(ITestOutputHelper output) : base(output) { }
@@ -59,8 +59,7 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
             {
                 var neverResolves = page.EvaluateFunctionHandleAsync("() => new Promise(r => {})");
                 await browser.CloseAsync();
-                var exception = await Assert.ThrowsAsync<EvaluationFailedException>(() => neverResolves);
-                Assert.IsType<TargetClosedException>(exception.InnerException);
+                var exception = await Assert.ThrowsAsync<TargetClosedException>(() => neverResolves);
                 Assert.Contains("Protocol error", exception.Message);
             }
         }

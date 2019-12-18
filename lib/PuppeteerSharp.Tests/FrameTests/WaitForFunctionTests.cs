@@ -5,7 +5,7 @@ using Xunit.Abstractions;
 
 namespace PuppeteerSharp.Tests.FrameTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class WaitForFunctionTests : PuppeteerPageBaseTest
     {
         public WaitForFunctionTests(ITestOutputHelper output) : base(output)
@@ -15,7 +15,7 @@ namespace PuppeteerSharp.Tests.FrameTests
         [Fact]
         public async Task ShouldWorkWhenResolvedRightBeforeExecutionContextDisposal()
         {
-            await Page.EvaluateOnNewDocumentAsync("() => window.__RELOADED = true");
+            await Page.EvaluateFunctionOnNewDocumentAsync("() => window.__RELOADED = true");
             await Page.WaitForFunctionAsync(@"() =>
             {
                 if (!window.__RELOADED)
@@ -150,6 +150,16 @@ namespace PuppeteerSharp.Tests.FrameTests
             await Page.EvaluateExpressionAsync("window.__FOO = 1");
             await waitForFunction;
             Assert.True(fooFound);
+        }
+
+        [Fact]
+        public async Task ShouldSurviveNavigations()
+        {
+            var watchdog = Page.WaitForFunctionAsync("() => window.__done");
+            await Page.GoToAsync(TestConstants.EmptyPage);
+            await Page.GoToAsync(TestConstants.ServerUrl + "/consolelog.html");
+            await Page.EvaluateFunctionAsync("() => window.__done = true");
+            await watchdog;
         }
     }
 }

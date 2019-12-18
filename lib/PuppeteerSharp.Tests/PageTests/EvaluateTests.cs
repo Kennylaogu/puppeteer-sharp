@@ -9,7 +9,7 @@ using System.Numerics;
 
 namespace PuppeteerSharp.Tests.PageTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class EvaluateTests : PuppeteerPageBaseTest
     {
         public EvaluateTests(ITestOutputHelper output) : base(output)
@@ -125,10 +125,10 @@ namespace PuppeteerSharp.Tests.PageTests
         {
             var exception = await Assert.ThrowsAsync<EvaluationFailedException>(() =>
             {
-                return Page.EvaluateFunctionAsync("() => not.existing.object.property");
+                return Page.EvaluateFunctionAsync("() => not_existing_object.property");
             });
 
-            Assert.Contains("not is not defined", exception.Message);
+            Assert.Contains("not_existing_object", exception.Message);
         }
 
         [Fact]
@@ -203,6 +203,20 @@ namespace PuppeteerSharp.Tests.PageTests
             Assert.Null(result);
         }
 
+        [Fact]
+        public async Task ShouldBeAbleToThrowATrickyError()
+        {
+            var windowHandle = await Page.EvaluateFunctionHandleAsync("() => window");
+            PuppeteerException exception = await Assert.ThrowsAsync<MessageException>(() => windowHandle.JsonValueAsync());
+            var errorText = exception.Message;
+
+            exception = await Assert.ThrowsAsync<EvaluationFailedException>(() => Page.EvaluateFunctionAsync(@"errorText =>
+            {
+                throw new Error(errorText);
+            }", errorText));
+            Assert.Contains(errorText, exception.Message);
+        }
+
         [Theory]
         [InlineData("1 + 5;", 6)] //ShouldAcceptSemiColons
         [InlineData("2 + 5\n// do some math!'", 7)] //ShouldAceptStringComments
@@ -245,7 +259,11 @@ namespace PuppeteerSharp.Tests.PageTests
 
         [Fact]
         public async Task ShouldSimulateAUserGesture()
-            => Assert.True(await Page.EvaluateFunctionAsync<bool>("() => document.execCommand('copy')"));
+            => Assert.True(await Page.EvaluateFunctionAsync<bool>(@"() => {
+                document.body.appendChild(document.createTextNode('test'));
+                document.execCommand('selectAll');
+                return document.execCommand('copy'); 
+            }"));
 
         [Fact]
         public async Task ShouldThrowANiceErrorAfterANavigation()
@@ -261,6 +279,39 @@ namespace PuppeteerSharp.Tests.PageTests
                 return executionContext.EvaluateFunctionAsync("() => null");
             });
             Assert.Contains("navigation", ex.Message);
+        }
+
+        [Fact]
+        public async Task ShouldNotThrowAnErrorWhenEvaluationDoesANavigation()
+        {
+            await Page.GoToAsync(TestConstants.ServerUrl + "/one-style.html");
+            var result = await Page.EvaluateFunctionAsync<int[]>(@"() =>
+            {
+                window.location = '/empty.html';
+                return [42];
+            }");
+            Assert.Equal(new[] { 42 }, result);
+        }
+
+        /// <summary>
+        /// Original Name "should transfer 100Mb of data from page to node.js"
+        /// </summary>
+        [Fact]
+        public async Task ShouldTransfer100MbOfDataFromPage()
+        {
+            var a = await Page.EvaluateFunctionAsync<string>("() => Array(100 * 1024 * 1024 + 1).join('a')");
+            Assert.Equal(100 * 1024 * 1024, a.Length);
+        }
+
+        [Fact]
+        public async Task ShouldThrowErrorWithDetailedInformationOnExceptionInsidePromise()
+        {
+            var exception = await Assert.ThrowsAsync<EvaluationFailedException>(() =>
+                Page.EvaluateFunctionAsync(
+                    @"() => new Promise(() => {
+                        throw new Error('Error in promise');
+                    })"));
+            Assert.Contains("Error in promise", exception.Message);
         }
 
         [Fact]

@@ -27,10 +27,11 @@ namespace PuppeteerSharp
             "--disable-backgrounding-occluded-windows",
             "--disable-breakpad",
             "--disable-client-side-phishing-detection",
+            "--disable-component-extensions-with-background-pages",
             "--disable-default-apps",
             "--disable-dev-shm-usage",
             "--disable-extensions",
-            "--disable-features=site-per-process,TranslateUI,BlinkGenPropertyTrees",
+            "--disable-features=TranslateUI,BlinkGenPropertyTrees",
             "--disable-hang-monitor",
             "--disable-ipc-flooding-protection",
             "--disable-popup-blocking",
@@ -261,10 +262,6 @@ namespace PuppeteerSharp
                     "--hide-scrollbars",
                     "--mute-audio"
                 });
-                if (BrowserFetcher.GetCurrentPlatform() == Platform.Win32)
-                {
-                    chromeArguments.Add("--disable-gpu");
-                }
             }
 
             if (options.Args.All(arg => arg.StartsWith("-", StringComparison.Ordinal)))

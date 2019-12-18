@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using System.Linq;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using PuppeteerSharp.Messaging;
@@ -117,8 +116,12 @@ namespace PuppeteerSharp
             {
                 if (Uri.TryCreate(new Uri(browserURL), "/json/version", out var endpointURL))
                 {
-                    var client = new HttpClient();
-                    var data = await client.GetStringAsync(endpointURL).ConfigureAwait(false);
+                    string data;
+                    using (var client = new HttpClient())
+                    {
+                        data = await client.GetStringAsync(endpointURL).ConfigureAwait(false);
+                    }
+
                     return JsonConvert.DeserializeObject<WSEndpointResponse>(data).WebSocketDebuggerUrl;
                 }
 
@@ -163,7 +166,6 @@ namespace PuppeteerSharp
             {
                 throw new FileNotFoundException("Failed to launch chrome! path to executable does not exist", chromeExecutable);
             }
-
             return chromeExecutable;
         }
 

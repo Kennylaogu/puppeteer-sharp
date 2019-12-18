@@ -13,7 +13,7 @@ using PuppeteerSharp.Helpers;
 
 namespace PuppeteerSharp.Tests.NetworkTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class SetRequestInterceptionTests : PuppeteerPageBaseTest
     {
         public SetRequestInterceptionTests(ITestOutputHelper output) : base(output)
@@ -80,6 +80,26 @@ namespace PuppeteerSharp.Tests.NetworkTests
             };
 
             await Page.GoToAsync(TestConstants.ServerUrl + "/rrredirect");
+        }
+
+        [Fact]
+        public async Task ShouldBeAbleToRemoveHeaders()
+        {
+            await Page.SetRequestInterceptionAsync(true);
+            Page.Request += async (sender, e) =>
+            {
+                var headers = e.Request.Headers.Clone();
+                headers["foo"] = "bar";
+                headers.Remove("origin");
+                await e.Request.ContinueAsync(new Payload { Headers = headers });
+            };
+
+            var requestTask = Server.WaitForRequest("/empty.html", request => request.Headers["origin"]);
+            await Task.WhenAll(
+                requestTask,
+                Page.GoToAsync(TestConstants.ServerUrl + "/empty.html")
+            );
+            Assert.True(string.IsNullOrEmpty(requestTask.Result));
         }
 
         [Fact]
@@ -159,7 +179,7 @@ namespace PuppeteerSharp.Tests.NetworkTests
             Assert.True(response.Ok);
         }
 
-        [Fact(Skip = "https://github.com/GoogleChrome/puppeteer/issues/4337")]
+        [Fact]
         public async Task ShouldWorkWithRedirectInsideSyncXHR()
         {
             await Page.GoToAsync(TestConstants.EmptyPage);
@@ -178,7 +198,7 @@ namespace PuppeteerSharp.Tests.NetworkTests
         }
 
         [Fact]
-        public async Task ShouldWorksWithCustomizingRefererHeaders()
+        public async Task ShouldWorkWithCustomRefererHeaders()
         {
             await Page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
             {
@@ -412,6 +432,25 @@ namespace PuppeteerSharp.Tests.NetworkTests
             var dataURL = "data:text/html,<div>yo</div>";
             var response = await Page.GoToAsync(dataURL);
             Assert.Equal(HttpStatusCode.OK, response.Status);
+            Assert.Single(requests);
+            Assert.Equal(dataURL, requests[0].Url);
+        }
+
+        [Fact]
+        public async Task ShouldBeAbleToFetchDataURLAndFireDataURLRequests()
+        {
+            await Page.GoToAsync(TestConstants.EmptyPage);
+            await Page.SetRequestInterceptionAsync(true);
+            var requests = new List<Request>();
+            Page.Request += async (sender, e) =>
+            {
+                requests.Add(e.Request);
+                await e.Request.ContinueAsync();
+            };
+            var dataURL = "data:text/html,<div>yo</div>";
+            var text = await Page.EvaluateFunctionAsync<string>("url => fetch(url).then(r => r.text())", dataURL);
+
+            Assert.Equal("<div>yo</div>", text);
             Assert.Single(requests);
             Assert.Equal(dataURL, requests[0].Url);
         }

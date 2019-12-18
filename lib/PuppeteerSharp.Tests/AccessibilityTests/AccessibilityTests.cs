@@ -1,11 +1,13 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
 using PuppeteerSharp.PageAccessibility;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace PuppeteerSharp.Tests.AccesibilityTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class AccesibilityTests : PuppeteerPageBaseTest
     {
         public AccesibilityTests(ITestOutputHelper output) : base(output)
@@ -35,12 +37,12 @@ namespace PuppeteerSharp.Tests.AccesibilityTests
                     <option>Second Option</option>
                 </select>
             </body>");
-            Assert.Equal(
-                new SerializedAXNode
-                {
-                    Role = "WebArea",
-                    Name = "Accessibility Test",
-                    Children = new SerializedAXNode[]
+
+            var nodeToCheck = new SerializedAXNode
+            {
+                Role = "WebArea",
+                Name = "Accessibility Test",
+                Children = new SerializedAXNode[]
                     {
                         new SerializedAXNode
                         {
@@ -107,14 +109,18 @@ namespace PuppeteerSharp.Tests.AccesibilityTests
                             }
                         }
                     }
-                },
-                await Page.Accessibility.SnapshotAsync());
+            };
+            await Page.FocusAsync("[placeholder='Empty input']");
+            var snapshot = await Page.Accessibility.SnapshotAsync();
+            Assert.Equal(nodeToCheck, snapshot);
         }
 
         [Fact]
         public async Task ShouldReportUninterestingNodes()
         {
             await Page.SetContentAsync("<textarea autofocus>hi</textarea>");
+            await Page.FocusAsync("textarea");
+
             Assert.Equal(
                 new SerializedAXNode
                 {

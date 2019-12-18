@@ -4,7 +4,7 @@ using Xunit.Abstractions;
 
 namespace PuppeteerSharp.Tests.PageTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class CloseTests : PuppeteerPageBaseTest
     {
         public CloseTests(ITestOutputHelper output) : base(output) { }
@@ -12,7 +12,7 @@ namespace PuppeteerSharp.Tests.PageTests
         [Fact]
         public async Task ShouldRejectAllPromisesWhenPageIsClosed()
         {
-            var exceptionTask = Assert.ThrowsAsync<EvaluationFailedException>(() => Page.EvaluateFunctionAsync("() => new Promise(r => {})"));
+            var exceptionTask = Assert.ThrowsAsync<TargetClosedException>(() => Page.EvaluateFunctionAsync("() => new Promise(r => {})"));
 
             await Task.WhenAll(
                 exceptionTask,
@@ -20,9 +20,8 @@ namespace PuppeteerSharp.Tests.PageTests
             );
 
             var exception = await exceptionTask;
-            Assert.IsType<TargetClosedException>(exception.InnerException);
             Assert.Contains("Protocol error", exception.Message);
-            Assert.Equal("Target.detachedFromTarget", ((TargetClosedException)exception.InnerException).CloseReason);
+            Assert.Equal("Target.detachedFromTarget", exception.CloseReason);
         }
 
         [Fact]
@@ -77,6 +76,24 @@ namespace PuppeteerSharp.Tests.PageTests
             Assert.False(Page.IsClosed);
             await Page.CloseAsync();
             Assert.True(Page.IsClosed);
+        }
+
+        [Fact]
+        public async Task ShouldTerminateNetworkWaiters()
+        {
+            var newPage = await Context.NewPageAsync();
+            var requestTask = newPage.WaitForRequestAsync(TestConstants.EmptyPage);
+            var responseTask = newPage.WaitForResponseAsync(TestConstants.EmptyPage);
+
+            await newPage.CloseAsync();
+
+            var exception = await Assert.ThrowsAsync<TargetClosedException>(() => requestTask);
+            Assert.Contains("Target closed", exception.Message);
+            Assert.DoesNotContain("Timeout", exception.Message);
+
+            exception = await Assert.ThrowsAsync<TargetClosedException>(() => responseTask);
+            Assert.Contains("Target closed", exception.Message);
+            Assert.DoesNotContain("Timeout", exception.Message);
         }
 
         [Fact(Timeout = 10000)]

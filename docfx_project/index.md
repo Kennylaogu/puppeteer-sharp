@@ -10,20 +10,17 @@ Puppeteer Sharp is a .NET port of the official [Node.JS Puppeteer API](https://g
  * If you have issues running Chrome on Linux, the Puppeteer repo has a [great troubleshooting guide](https://github.com/GoogleChrome/puppeteer/blob/master/docs/troubleshooting.md).
 
 # Monthly reports
+ * [August 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-aug-2019)
+ * [July 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-jul-2019)
+ * [June 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-jun-2019)
+ * [May 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-may-2019)
+ * [April 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-apr-2019)
+ * [March 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-mar-2019)
+ * [February 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-feb-2019)
  * [January 2019](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-jan-2019)
- * [December 2018](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-dec-2018)
- * [November 2018](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-nov-2018)
- * [October 2018](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-oct-2018)
- * [September 2018](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-sep-2018)
- * [July 2018](https://www.hardkoded.com/blog/puppeteer-sharp-monthly-jul-2018)
- * [June 2018](http://www.hardkoded.com/blog/puppeteer-sharp-monthly-jun-2018)
- * [May 2018](http://www.hardkoded.com/blogs/puppeteer-sharp-monthly-may-2018)
- * [April 2018](http://www.hardkoded.com/blogs/puppeteer-sharp-monthly-april-2018)
- * [March 2018](http://www.hardkoded.com/blogs/puppeteer-sharp-monthly-march-2018)
- * [February 2018](http://www.hardkoded.com/blogs/puppeteer-sharp-monthly-february-2018)
 
 # Useful links
 
-* Slack channel [#puppeteer-sharp](https://join.slack.com/t/puppeteer/shared_invite/enQtMzU4MjIyMDA5NTM4LTM1OTdkNDhlM2Y4ZGUzZDdjYjM5ZWZlZGFiZjc4MTkyYTVlYzIzYjU5NDIyNzgyMmFiNDFjN2UzNWU0N2ZhZDc)
+* Slack channel [#puppeteer-sharp](https://puppeteer.slack.com/join/shared_invite/enQtMzU4MjIyMDA5NTM4LWI0YTE0MjM0NWQzYmE2MTRmNjM1ZTBkN2MxNmJmNTIwNTJjMmFhOWFjMGExMDViYjk2YjU2ZmYzMmE1NmExYzc)
 * [StackOverflow](https://stackoverflow.com/search?q=puppeteer-sharp)
 * [Issues](https://github.com/kblok/puppeteer-sharp/issues?utf8=%E2%9C%93&q=is%3Aissue)

@@ -6,7 +6,7 @@ using Xunit.Abstractions;
 
 namespace PuppeteerSharp.Tests.PageTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class AddScriptTagTests : PuppeteerPageBaseTest
     {
         public AddScriptTagTests(ITestOutputHelper output) : base(output)
@@ -106,7 +106,7 @@ namespace PuppeteerSharp.Tests.PageTests
             Assert.Equal(35, await Page.EvaluateExpressionAsync<int>("__injected"));
         }
 
-        [Fact]
+        [Fact(Skip = "@see https://github.com/GoogleChrome/puppeteer/issues/4840")]
         public async Task ShouldThrowWhenAddedWithContentToTheCSPPage()
         {
             await Page.GoToAsync(TestConstants.ServerUrl + "/csp.html");

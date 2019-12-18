@@ -7,7 +7,7 @@ using Xunit.Abstractions;
 
 namespace PuppeteerSharp.Tests.PuppeteerTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class HeadfulTests : PuppeteerBaseTest
     {
         public HeadfulTests(ITestOutputHelper output) : base(output)
@@ -22,7 +22,7 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
                 TestConstants.LoggerFactory))
             using (var page = await browserWithExtension.NewPageAsync())
             {
-                var backgroundPageTarget = await WaitForBackgroundPageTargetAsync(browserWithExtension);
+                var backgroundPageTarget = await browserWithExtension.WaitForTargetAsync(t => t.Type == TargetType.BackgroundPage);
                 Assert.NotNull(backgroundPageTarget);
             }
         }
@@ -34,9 +34,12 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
                 TestConstants.BrowserWithExtensionOptions(),
                 TestConstants.LoggerFactory))
             {
-                var backgroundPageTarget = await WaitForBackgroundPageTargetAsync(browserWithExtension);
-                var page = await backgroundPageTarget.PageAsync();
-                Assert.Equal(6, await page.EvaluateFunctionAsync<int>("() => 2 * 3"));
+                var backgroundPageTarget = await browserWithExtension.WaitForTargetAsync(t => t.Type == TargetType.BackgroundPage);
+                using (var page = await backgroundPageTarget.PageAsync())
+                {
+                    Assert.Equal(6, await page.EvaluateFunctionAsync<int>("() => 2 * 3"));
+                    Assert.Equal(42, await page.EvaluateFunctionAsync<int>("() => window.MAGIC"));
+                }
             }
         }
 
@@ -61,13 +64,13 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
                 var options = TestConstants.DefaultBrowserOptions();
                 options.Args = options.Args.Concat(new[] { $"--user-data-dir=\"{userDataDir}\"" }).ToArray();
                 options.Headless = false;
-
-                var browser = await launcher.LaunchAsync(options);
-                var page = await browser.NewPageAsync();
-                await page.GoToAsync(TestConstants.EmptyPage);
-                await page.EvaluateExpressionAsync(
-                    "document.cookie = 'foo=true; expires=Fri, 31 Dec 9999 23:59:59 GMT'");
-                await browser.CloseAsync();
+                using (var browser = await launcher.LaunchAsync(options))
+                using (var page = await browser.NewPageAsync())
+                {
+                    await page.GoToAsync(TestConstants.EmptyPage);
+                    await page.EvaluateExpressionAsync(
+                        "document.cookie = 'foo=true; expires=Fri, 31 Dec 9999 23:59:59 GMT'");
+                }
 
                 await TestUtils.WaitForCookieInChromiumFileAsync(userDataDir.Path, "foo");
 
@@ -81,7 +84,7 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
             }
         }
 
-        [Fact]
+        [Fact(Skip = "TODO: Support OOOPIF. @see https://github.com/GoogleChrome/puppeteer/issues/2548")]
         public async Task OOPIFShouldReportGoogleComFrame()
         {
             // https://google.com is isolated by default in Chromium embedder.
@@ -121,26 +124,42 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
             }
         }
 
-        private Task<Target> WaitForBackgroundPageTargetAsync(Browser browser)
+        [Fact]
+        public async Task ShouldOpenDevtoolsWhenDevtoolsTrueOptionIsGiven()
         {
-            var target = browser.Targets().FirstOrDefault(t => t.Type == TargetType.BackgroundPage);
-            if (target != null)
+            var headfulOptions = TestConstants.DefaultBrowserOptions();
+            headfulOptions.Devtools = true;
+            using (var browser = await Puppeteer.LaunchAsync(headfulOptions))
             {
-                return Task.FromResult(target);
+                var context = await browser.CreateIncognitoBrowserContextAsync();
+                await Task.WhenAll(
+                    context.NewPageAsync(),
+                    context.WaitForTargetAsync(target => target.Url.Contains("devtools://")));
             }
-            var targetCreatedTcs = new TaskCompletionSource<Target>();
-            void targetCreated(object sender, TargetChangedArgs e)
-            {
-                if (e.Target.Type != TargetType.BackgroundPage)
-                {
-                    return;
-                }
-                targetCreatedTcs.TrySetResult(e.Target);
-                browser.TargetCreated -= targetCreated;
-            }
-            browser.TargetCreated += targetCreated;
+        }
 
-            return targetCreatedTcs.Task;
+        [Fact]
+        public async Task BringToFrontShouldWork()
+        {
+            using (var browserWithExtension = await Puppeteer.LaunchAsync(
+                TestConstants.BrowserWithExtensionOptions(),
+                TestConstants.LoggerFactory))
+            using (var page = await browserWithExtension.NewPageAsync())
+            {
+                await page.GoToAsync(TestConstants.EmptyPage);
+                Assert.Equal("visible", await page.EvaluateExpressionAsync<string>("document.visibilityState"));
+
+                var newPage = await browserWithExtension.NewPageAsync();
+                await newPage.GoToAsync(TestConstants.EmptyPage);
+                Assert.Equal("hidden", await page.EvaluateExpressionAsync<string>("document.visibilityState"));
+                Assert.Equal("visible", await newPage.EvaluateExpressionAsync<string>("document.visibilityState"));
+
+                await page.BringToFrontAsync();
+                Assert.Equal("visible", await page.EvaluateExpressionAsync<string>("document.visibilityState"));
+                Assert.Equal("hidden", await newPage.EvaluateExpressionAsync<string>("document.visibilityState"));
+
+                await newPage.CloseAsync();
+            }
         }
     }
 }

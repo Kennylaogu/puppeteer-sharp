@@ -29,8 +29,7 @@ namespace PuppeteerSharp
             _frames = new ConcurrentDictionary<string, Frame>();
             _contextIdToContext = new Dictionary<int, ExecutionContext>();
             _logger = Client.Connection.LoggerFactory.CreateLogger<FrameManager>();
-            NetworkManager = new NetworkManager(client, ignoreHTTPSErrors);
-            NetworkManager.FrameManager = this;
+            NetworkManager = new NetworkManager(client, ignoreHTTPSErrors, this);
             TimeoutSettings = timeoutSettings;
             _asyncFrames = new AsyncDictionaryHelper<string, Frame>(_frames, "Frame {0} not found");
 
@@ -73,7 +72,7 @@ namespace PuppeteerSharp
                 client.SendAsync("Runtime.enable"),
                 frameManager.NetworkManager.InitializeAsync()).ConfigureAwait(false);
 
-            await frameManager.EnsureSecondaryDOMWorldAsync().ConfigureAwait(false);
+            await frameManager.EnsureIsolatedWorldAsync().ConfigureAwait(false);
 
             return frameManager;
         }
@@ -400,9 +399,9 @@ namespace PuppeteerSharp
             }
         }
 
-        private Task EnsureSecondaryDOMWorldAsync() => EnsureSecondaryDOMWorldAsync(UtilityWorldName);
+        private Task EnsureIsolatedWorldAsync() => EnsureIsolatedWorldAsync(UtilityWorldName);
 
-        private async Task EnsureSecondaryDOMWorldAsync(string name)
+        private async Task EnsureIsolatedWorldAsync(string name)
         {
             if (_isolatedWorlds.Contains(name))
             {
@@ -414,12 +413,20 @@ namespace PuppeteerSharp
                 Source = $"//# sourceURL={ExecutionContext.EvaluationScriptUrl}",
                 WorldName = name,
             });
-            await Task.WhenAll(GetFrames().Select(frame => Client.SendAsync("Page.createIsolatedWorld", new PageCreateIsolatedWorldRequest
+
+            try
             {
-                FrameId = frame.Id,
-                GrantUniveralAccess = true,
-                WorldName = name
-            }))).ConfigureAwait(false);
+                await Task.WhenAll(GetFrames().Select(frame => Client.SendAsync("Page.createIsolatedWorld", new PageCreateIsolatedWorldRequest
+                {
+                    FrameId = frame.Id,
+                    GrantUniveralAccess = true,
+                    WorldName = name
+                }))).ConfigureAwait(false);
+            }
+            catch (PuppeteerException ex)
+            {
+                _logger.LogError(ex.ToString());
+            }
         }
 
         internal Task<Frame> GetFrameAsync(string frameId) => _asyncFrames.GetItemAsync(frameId);

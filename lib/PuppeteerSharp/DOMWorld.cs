@@ -145,12 +145,14 @@ namespace PuppeteerSharp
                 document.close();
             }", html).ConfigureAwait(false);
 
-            var watcher = new LifecycleWatcher(_frameManager, Frame, waitUntil, timeout);
-            var watcherTask = await Task.WhenAny(
-                watcher.TimeoutOrTerminationTask,
-                watcher.LifecycleTask).ConfigureAwait(false);
+            using (var watcher = new LifecycleWatcher(_frameManager, Frame, waitUntil, timeout))
+            {
+                var watcherTask = await Task.WhenAny(
+                    watcher.TimeoutOrTerminationTask,
+                    watcher.LifecycleTask).ConfigureAwait(false);
 
-            await watcherTask.ConfigureAwait(false);
+                await watcherTask.ConfigureAwait(false);
+            }
         }
 
         internal async Task<ElementHandle> AddScriptTagAsync(AddTagOptions options)
@@ -307,22 +309,16 @@ namespace PuppeteerSharp
             await handle.DisposeAsync().ConfigureAwait(false);
         }
 
-        internal Task<string[]> SelectAsync(string selector, params string[] values)
-            => QuerySelectorAsync(selector).EvaluateFunctionAsync<string[]>(@"(element, values) => {
-                if (element.nodeName.toLowerCase() !== 'select')
-                    throw new Error('Element is not a <select> element.');
-
-                const options = Array.from(element.options);
-                element.value = undefined;
-                for (const option of options) {
-                    option.selected = values.includes(option.value);
-                    if (option.selected && !element.multiple)
-                      break;
-                }
-                element.dispatchEvent(new Event('input', { 'bubbles': true }));
-                element.dispatchEvent(new Event('change', { 'bubbles': true }));
-                return options.filter(option => option.selected).map(option => option.value);
-            }", new[] { values });
+        internal async Task<string[]> SelectAsync(string selector, params string[] values)
+        {
+            if (!((await QuerySelectorAsync(selector).ConfigureAwait(false)) is ElementHandle handle))
+            {
+                throw new SelectorException($"No node found for selector: {selector}", selector);
+            }
+            var result = await handle.SelectAsync(values).ConfigureAwait(false);
+            await handle.DisposeAsync();
+            return result;
+        }
 
         internal async Task TapAsync(string selector)
         {
@@ -390,6 +386,8 @@ namespace PuppeteerSharp
         private async Task<ElementHandle> WaitForSelectorOrXPathAsync(string selectorOrXPath, bool isXPath, WaitForSelectorOptions options = null)
         {
             options = options ?? new WaitForSelectorOptions();
+            var timeout = options.Timeout ?? _timeoutSettings.Timeout;
+
             const string predicate = @"
               function predicate(selectorOrXPath, isXPath, waitForVisible, waitForHidden) {
                 const node = isXPath
@@ -419,7 +417,7 @@ namespace PuppeteerSharp
                 $"{(isXPath ? "XPath" : "selector")} '{selectorOrXPath}'{(options.Hidden ? " to be hidden" : "")}",
                 polling,
                 null,
-                options.Timeout,
+                timeout,
                 new object[]
                 {
                     selectorOrXPath,

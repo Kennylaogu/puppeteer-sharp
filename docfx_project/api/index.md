@@ -42,6 +42,31 @@ await page.GoToAsync("http://www.google.com");
 await page.PdfAsync(outputFile);
 ```
 
+### Generate PDF files with custom options
+
+```cs
+await new BrowserFetcher().DownloadAsync(BrowserFetcher.DefaultRevision);
+var browser = await Puppeteer.LaunchAsync(new LaunchOptions
+{
+    Headless = true
+});
+var page = await browser.NewPageAsync();
+await page.GoToAsync("http://www.google.com");
+await page.PdfAsync(outputFile, new PdfOptions
+{
+    Format = PaperFormat.A4,
+    DisplayHeaderFooter = true,
+    MarginOptions = new MarginOptions
+    {
+        Top = "20px",
+        Right = "20px",
+        Bottom = "40px",
+        Left = "20px"
+    },
+    FooterTemplate = "<div id=\"footer-template\" style=\"font-size:10px !important; color:#808080; padding-left:10px\">Footer Text</div>"
+});
+```
+
 ## Inject HTML
 
 ```cs
@@ -59,7 +84,7 @@ using(var page = await Browser.NewPageAsync())
 ```cs
 using (var page = await Browser.NewPageAsync())
 {
-    var seven = await page.EvaluateFunctionAsync<int>("4 + 3");
+    var seven = await page.EvaluateExpressionAsync<int>("4 + 3");
     var someObject = await page.EvaluateFunctionAsync<dynamic>("(value) => ({a: value})", 5);
     Console.WriteLine(someObject.a);
 }

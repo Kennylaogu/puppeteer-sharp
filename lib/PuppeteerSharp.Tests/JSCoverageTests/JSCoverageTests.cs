@@ -9,7 +9,7 @@ using Xunit.Abstractions;
 
 namespace PuppeteerSharp.Tests.JSCoverageTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class JSCoverageTests : PuppeteerPageBaseTest
     {
         public JSCoverageTests(ITestOutputHelper output) : base(output)
@@ -161,7 +161,7 @@ namespace PuppeteerSharp.Tests.JSCoverageTests
                 Regex.Replace(TestUtils.CompressText(JsonConvert.SerializeObject(coverage)), @"\d{4}\/", "<PORT>/"));
         }
 
-        [Fact(Skip = "SKipped in puppeteer")]
+        [Fact(Skip = "Skipped in puppeteer")]
         public async Task ShouldNotHangWhenThereIsADebuggerStatement()
         {
             await Page.Coverage.StartJSCoverageAsync();

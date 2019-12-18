@@ -5,7 +5,7 @@ using Xunit.Abstractions;
 
 namespace PuppeteerSharp.Tests.PageTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class SetContentTests : PuppeteerPageBaseTest
     {
         const string ExpectedOutput = "<html><head></head><body><div>hello</div></body></html>";
@@ -59,7 +59,7 @@ namespace PuppeteerSharp.Tests.PageTests
                     Timeout = 1
                 }));
 
-            Assert.Contains("Timeout Exceeded: 1ms", exception.Message);
+            Assert.Contains("Timeout of 1 ms exceeded", exception.Message);
         }
 
         [Fact]
@@ -73,7 +73,7 @@ namespace PuppeteerSharp.Tests.PageTests
             var exception = await Assert.ThrowsAnyAsync<TimeoutException>(async () =>
                 await Page.SetContentAsync($"<img src='{TestConstants.ServerUrl + imgPath}'></img>"));
 
-            Assert.Contains("Timeout Exceeded: 1ms", exception.Message);
+            Assert.Contains("Timeout of 1 ms exceeded", exception.Message);
         }
 
         [Fact]

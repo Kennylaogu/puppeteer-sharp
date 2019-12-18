@@ -8,7 +8,7 @@ using Xunit.Abstractions;
 
 namespace PuppeteerSharp.Tests.PageTests
 {
-    [Collection("PuppeteerLoaderFixture collection")]
+    [Collection(TestConstants.TestFixtureCollectionName)]
     public class ScreenshotTests : PuppeteerBrowserContextBaseTest
     {
         public ScreenshotTests(ITestOutputHelper output) : base(output)
@@ -91,20 +91,17 @@ namespace PuppeteerSharp.Tests.PageTests
         }
 
         [Fact]
-        public async Task ShouldWorkForOffscreenClip()
+        public async Task ShouldClipElementsToTheViewport()
         {
             using (var page = await Context.NewPageAsync())
             {
-                await page.SetViewportAsync(new ViewPortOptions
-                {
-                    Width = 500,
-                    Height = 500
-                });
+                await page.SetViewportAsync(new ViewPortOptions { Width = 500, Height = 500 });
                 await page.GoToAsync(TestConstants.ServerUrl + "/grid.html");
                 var screenshot = await page.ScreenshotDataAsync(new ScreenshotOptions
                 {
                     Clip = new Clip
                     {
+
                         X = 50,
                         Y = 600,
                         Width = 100,
@@ -173,12 +170,12 @@ namespace PuppeteerSharp.Tests.PageTests
             var pageTasks = new List<Task<Page>>();
             for (var i = 0; i < n; i++)
             {
-                Func<Task<Page>> func = async () =>
+                async Task<Page> func()
                 {
                     var page = await Context.NewPageAsync();
                     await page.GoToAsync(TestConstants.ServerUrl + "/grid.html");
                     return page;
-                };
+                }
 
                 pageTasks.Add(func());
             }

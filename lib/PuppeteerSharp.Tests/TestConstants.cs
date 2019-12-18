@@ -11,6 +11,7 @@ namespace PuppeteerSharp.Tests
 {
     public static class TestConstants
     {
+        public const string TestFixtureCollectionName = "PuppeteerLoaderFixture collection";
         public const int Port = 8081;
         public const int HttpsPort = Port + 1;
         public const string ServerUrl = "http://localhost:8081";
@@ -26,6 +27,7 @@ namespace PuppeteerSharp.Tests
         public static readonly DeviceDescriptor IPhone6Landscape = Puppeteer.Devices[DeviceDescriptorName.IPhone6Landscape];
 
         public static ILoggerFactory LoggerFactory { get; private set; }
+        public static string FileToUpload => Path.Combine(Directory.GetCurrentDirectory(), "Assets", "file-to-upload.txt");
 
         public static readonly IEnumerable<string> NestedFramesDumpResult = new List<string>()
         {

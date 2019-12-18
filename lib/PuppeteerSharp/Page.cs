@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -44,8 +45,11 @@ namespace PuppeteerSharp
         private PageGetLayoutMetricsResponse _burstModeMetrics;
         private bool _screenshotBurstModeOn;
         private ScreenshotOptions _screenshotBurstModeOptions;
-        private TaskCompletionSource<bool> _closeCompletedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        private TimeoutSettings _timeoutSettings;
+        private readonly TaskCompletionSource<bool> _closeCompletedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource<bool> _sessionClosedTcs;
+        private readonly TimeoutSettings _timeoutSettings;
+        private bool _fileChooserInterceptionIsDisabled;
+        private ConcurrentDictionary<Guid, TaskCompletionSource<FileChooser>> _fileChooserInterceptors;
 
         private static readonly Dictionary<string, decimal> _unitToPixels = new Dictionary<string, decimal> {
             {"px", 1},
@@ -67,6 +71,7 @@ namespace PuppeteerSharp
             Tracing = new Tracing(client);
             Coverage = new Coverage(client);
 
+            _fileChooserInterceptors = new ConcurrentDictionary<Guid, TaskCompletionSource<FileChooser>>();
             _timeoutSettings = new TimeoutSettings();
             _emulationManager = new EmulationManager(client);
             _pageBindings = new Dictionary<string, Delegate>();
@@ -90,9 +95,12 @@ namespace PuppeteerSharp
             });
         }
 
-        internal CDPSession Client { get; }
-
         #region Public Properties
+
+        /// <summary>
+        /// Chrome DevTools Protocol session.
+        /// </summary>
+        public CDPSession Client { get; }
 
         /// <summary>
         /// Raised when the JavaScript <c>load</c> <see href="https://developer.mozilla.org/en-US/docs/Web/Events/load"/> event is dispatched.
@@ -105,7 +113,7 @@ namespace PuppeteerSharp
         public event EventHandler<ErrorEventArgs> Error;
 
         /// <summary>
-        /// Raised when the JavaScript code makes a call to <c>console.timeStamp</c>. For the list of metrics see <see cref="Page.MetricsAsync"/>.
+        /// Raised when the JavaScript code makes a call to <c>console.timeStamp</c>. For the list of metrics see <see cref="MetricsAsync"/>.
         /// </summary>
         public event EventHandler<MetricEventArgs> Metrics;
 
@@ -157,6 +165,26 @@ namespace PuppeteerSharp
         /// <summary>
         /// Raised when a <see cref="Response"/> is received.
         /// </summary>
+        /// <example>
+        /// An example of handling <see cref="Response"/> event:
+        /// <code>
+        /// <![CDATA[
+        /// var tcs = new TaskCompletionSource<string>();
+        /// page.Response += async(sender, e) =>
+        /// {
+        ///     if (e.Response.Url.Contains("script.js"))
+        ///     {
+        ///         tcs.TrySetResult(await e.Response.TextAsync());
+        ///     }
+        /// };
+        ///
+        /// await Task.WhenAll(
+        ///     page.GoToAsync(TestConstants.ServerUrl + "/grid.html"),
+        ///     tcs.Task);
+        /// Console.WriteLine(await tcs.Task);
+        /// ]]>
+        /// </code>
+        /// </example>
         public event EventHandler<ResponseCreatedEventArgs> Response;
 
         /// <summary>
@@ -218,18 +246,18 @@ namespace PuppeteerSharp
 
         /// <summary>
         /// This setting will change the default maximum times for the following methods:
-        /// - <see cref="Page.GoBackAsync(NavigationOptions)"/>
-        /// - <see cref="Page.GoForwardAsync(NavigationOptions)"/>
-        /// - <see cref="Page.GoToAsync(string, NavigationOptions)"/>
-        /// - <see cref="Page.ReloadAsync(NavigationOptions)"/>
-        /// - <see cref="Page.SetContentAsync(string, NavigationOptions)"/>
-        /// - <see cref="Page.WaitForFunctionAsync(string, object[])"/>
-        /// - <see cref="Page.WaitForNavigationAsync(NavigationOptions)"/>
-        /// - <see cref="Page.WaitForRequestAsync(string, WaitForOptions)"/>
-        /// - <see cref="Page.WaitForResponseAsync(string, WaitForOptions)"/>
-        /// - <see cref="Page.WaitForXPathAsync(string, WaitForSelectorOptions)"/>
-        /// - <see cref="Page.WaitForSelectorAsync(string, WaitForSelectorOptions)"/>
-        /// - <see cref="Page.WaitForExpressionAsync(string, WaitForFunctionOptions)"/>
+        /// - <see cref="GoBackAsync(NavigationOptions)"/>
+        /// - <see cref="GoForwardAsync(NavigationOptions)"/>
+        /// - <see cref="GoToAsync(string, NavigationOptions)"/>
+        /// - <see cref="ReloadAsync(NavigationOptions)"/>
+        /// - <see cref="SetContentAsync(string, NavigationOptions)"/>
+        /// - <see cref="WaitForFunctionAsync(string, object[])"/>
+        /// - <see cref="WaitForNavigationAsync(NavigationOptions)"/>
+        /// - <see cref="WaitForRequestAsync(string, WaitForOptions)"/>
+        /// - <see cref="WaitForResponseAsync(string, WaitForOptions)"/>
+        /// - <see cref="WaitForXPathAsync(string, WaitForSelectorOptions)"/>
+        /// - <see cref="WaitForSelectorAsync(string, WaitForSelectorOptions)"/>
+        /// - <see cref="WaitForExpressionAsync(string, WaitForFunctionOptions)"/>
         /// </summary>
         public int DefaultTimeout
         {
@@ -340,6 +368,25 @@ namespace PuppeteerSharp
         internal bool HasPopupEventListeners => Popup?.GetInvocationList().Any() == true;
         internal FrameManager FrameManager { get; private set; }
 
+        private Task SessionClosedTask
+        {
+            get
+            {
+                if (_sessionClosedTcs == null)
+                {
+                    _sessionClosedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    Client.Disconnected += clientDisconnected;
+
+                    void clientDisconnected(object sender, EventArgs e)
+                    {
+                        _sessionClosedTcs.TrySetException(new TargetClosedException("Target closed", "Session closed"));
+                        Client.Disconnected -= clientDisconnected;
+                    }
+                }
+
+                return _sessionClosedTcs.Task;
+            }
+        }
         #endregion
 
         #region Public Methods
@@ -487,7 +534,28 @@ namespace PuppeteerSharp
         /// </code>
         /// </example>
         /// <returns>Task</returns>
+        [Obsolete("User EvaluateFunctionOnNewDocumentAsync instead")]
         public Task EvaluateOnNewDocumentAsync(string pageFunction, params object[] args)
+            => EvaluateFunctionOnNewDocumentAsync(pageFunction, args);
+
+        /// <summary>
+        /// Adds a function which would be invoked in one of the following scenarios:
+        /// - whenever the page is navigated
+        /// - whenever the child frame is attached or navigated. In this case, the function is invoked in the context of the newly attached frame
+        /// </summary>
+        /// <param name="pageFunction">Function to be evaluated in browser context</param>
+        /// <param name="args">Arguments to pass to <c>pageFunction</c></param>
+        /// <remarks>
+        /// The function is invoked after the document was created but before any of its scripts were run. This is useful to amend JavaScript environment, e.g. to seed <c>Math.random</c>.
+        /// </remarks>
+        /// <example>
+        /// An example of overriding the navigator.languages property before the page loads:
+        /// <code>
+        /// await page.EvaluateFunctionOnNewDocumentAsync("() => window.__example = true");
+        /// </code>
+        /// </example>
+        /// <returns>Task</returns>
+        public Task EvaluateFunctionOnNewDocumentAsync(string pageFunction, params object[] args)
         {
             var source = EvaluationString(pageFunction, args);
             return Client.SendAsync("Page.addScriptToEvaluateOnNewDocument", new PageAddScriptToEvaluateOnNewDocumentRequest
@@ -495,6 +563,28 @@ namespace PuppeteerSharp
                 Source = source
             });
         }
+
+        /// <summary>
+        /// Adds a function which would be invoked in one of the following scenarios:
+        /// - whenever the page is navigated
+        /// - whenever the child frame is attached or navigated. In this case, the function is invoked in the context of the newly attached frame
+        /// </summary>
+        /// <param name="expression">Javascript expression to be evaluated in browser context</param>
+        /// <remarks>
+        /// The function is invoked after the document was created but before any of its scripts were run. This is useful to amend JavaScript environment, e.g. to seed <c>Math.random</c>.
+        /// </remarks>
+        /// <example>
+        /// An example of overriding the navigator.languages property before the page loads:
+        /// <code>
+        /// await page.EvaluateExpressionOnNewDocumentAsync("window.__example = true;");
+        /// </code>
+        /// </example>
+        /// <returns>Task</returns>
+        public Task EvaluateExpressionOnNewDocumentAsync(string expression)
+            => Client.SendAsync("Page.addScriptToEvaluateOnNewDocument", new PageAddScriptToEvaluateOnNewDocumentRequest
+            {
+                Source = expression
+            });
 
         /// <summary>
         /// The method iterates JavaScript heap and finds all the objects with the given prototype.
@@ -746,7 +836,25 @@ namespace PuppeteerSharp
 
         /// <summary>
         /// Navigates to an url
-        /// </summary>        
+        /// </summary>
+        /// <remarks>
+        /// <see cref="GoToAsync(string, int?, WaitUntilNavigation[])"/> will throw an error if:
+        /// - there's an SSL error (e.g. in case of self-signed certificates).
+        /// - target URL is invalid.
+        /// - the `timeout` is exceeded during navigation.
+        /// - the remote server does not respond or is unreachable.
+        /// - the main resource failed to load.
+        /// 
+        /// <see cref="GoToAsync(string, int?, WaitUntilNavigation[])"/> will not throw an error when any valid HTTP status code is returned by the remote server, 
+        /// including 404 "Not Found" and 500 "Internal Server Error".  The status code for such responses can be retrieved by calling <see cref="Response.Status"/>
+        /// 
+        /// > **NOTE** <see cref="GoToAsync(string, int?, WaitUntilNavigation[])"/> either throws an error or returns a main resource response. 
+        /// The only exceptions are navigation to `about:blank` or navigation to the same URL with a different hash, which would succeed and return `null`.
+        /// 
+        /// > **NOTE** Headless mode doesn't support navigation to a PDF document. See the <see fref="https://bugs.chromium.org/p/chromium/issues/detail?id=761295">upstream issue</see>.
+        /// 
+        /// Shortcut for <seealso cref="Frame.GoToAsync(string, int?, WaitUntilNavigation[])"/>
+        /// </remarks>
         /// <param name="url">URL to navigate page to. The url should include scheme, e.g. https://.</param>
         /// <param name="options">Navigation parameters.</param>
         /// <returns>Task which resolves to the main resource response. In case of multiple redirects, the navigation will resolve with the response of the last redirect.</returns>
@@ -794,14 +902,7 @@ namespace PuppeteerSharp
         /// Generating a pdf is currently only supported in Chrome headless
         /// </remarks>
         public async Task PdfAsync(string file, PdfOptions options)
-        {
-            var data = await PdfDataAsync(options).ConfigureAwait(false);
-
-            using (var fs = AsyncFileHelper.CreateStream(file, FileMode.Create))
-            {
-                await fs.WriteAsync(data, 0, data.Length).ConfigureAwait(false);
-            }
-        }
+            => await PdfInternalAsync(file, options).ConfigureAwait(false);
 
         /// <summary>
         /// generates a pdf of the page with <see cref="MediaType.Print"/> css media. To generate a pdf with <see cref="MediaType.Screen"/> media call <see cref="EmulateMediaAsync(MediaType)"/> with <see cref="MediaType.Screen"/>
@@ -840,7 +941,9 @@ namespace PuppeteerSharp
         /// <remarks>
         /// Generating a pdf is currently only supported in Chrome headless
         /// </remarks>
-        public async Task<byte[]> PdfDataAsync(PdfOptions options)
+        public Task<byte[]> PdfDataAsync(PdfOptions options) => PdfInternalAsync(null, options);
+
+        internal async Task<byte[]> PdfInternalAsync(string file, PdfOptions options)
         {
             var paperWidth = PaperFormat.Letter.Width;
             var paperHeight = PaperFormat.Letter.Height;
@@ -869,6 +972,7 @@ namespace PuppeteerSharp
 
             var result = await Client.SendAsync<PagePrintToPDFResponse>("Page.printToPDF", new PagePrintToPDFRequest
             {
+                TransferMode = "ReturnAsStream",
                 Landscape = options.Landscape,
                 DisplayHeaderFooter = options.DisplayHeaderFooter,
                 HeaderTemplate = options.HeaderTemplate,
@@ -885,7 +989,7 @@ namespace PuppeteerSharp
                 PreferCSSPageSize = options.PreferCSSPageSize
             }).ConfigureAwait(false);
 
-            return Convert.FromBase64String(result.Data);
+            return await ProtocolStreamReader.ReadProtocolStreamByteAsync(Client, result.Stream, file).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -925,14 +1029,97 @@ namespace PuppeteerSharp
         /// </summary>
         /// <returns>Task.</returns>
         /// <param name="media">Media to set.</param>
-        public Task EmulateMediaAsync(MediaType media)
-            => Client.SendAsync("Emulation.setEmulatedMedia", new EmulationSetEmulatedMediaRequest { Media = media });
+        [Obsolete("User EmulateMediaTypeAsync instead")]
+        public Task EmulateMediaAsync(MediaType media) => EmulateMediaTypeAsync(media);
+
+        /// <summary>
+        /// Emulates a media such as screen or print.
+        /// </summary>
+        /// <param name="type">Media to set.</param>
+        /// <example>
+        /// <code>
+        /// <![CDATA[
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('screen').matches)");
+        /// // → true
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('print').matches)");
+        /// // → true
+        /// await page.EmulateMediaTypeAsync(MediaType.Print);
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('screen').matches)");
+        /// // → false
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('print').matches)");
+        /// // → true
+        /// await page.EmulateMediaTypeAsync(MediaType.None);
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('screen').matches)");
+        /// // → true
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('print').matches)");
+        /// // → true
+        /// ]]>
+        /// </code>
+        /// </example>
+        /// <returns>Emulate media type task.</returns>
+        public Task EmulateMediaTypeAsync(MediaType type)
+            => Client.SendAsync("Emulation.setEmulatedMedia", new EmulationSetEmulatedMediaTypeRequest { Media = type });
+
+        /// <summary>
+        /// Given an array of media feature objects, emulates CSS media features on the page.
+        /// </summary>
+        /// <param name="features">Features to apply</param>
+        /// <example>
+        /// <code>
+        /// <![CDATA[
+        /// await page.EmulateMediaFeaturesAsync(new MediaFeature[]{ new MediaFeature { MediaFeature =  MediaFeature.PrefersColorScheme, Value = "dark" }});
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('(prefers-color-scheme: dark)').matches)");
+        /// // → true
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('(prefers-color-scheme: light)').matches)");
+        /// // → false
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('(prefers-color-scheme: no-preference)').matches)");
+        /// // → false
+        /// await page.EmulateMediaFeaturesAsync(new MediaFeature[]{ new MediaFeature { MediaFeature = MediaFeature.PrefersReducedMotion, Value = "reduce" }});
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('(prefers-reduced-motion: reduce)').matches)");
+        /// // → true
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('(prefers-color-scheme: no-preference)').matches)");
+        /// // → false
+        /// await page.EmulateMediaFeaturesAsync(new MediaFeature[]
+        /// { 
+        ///   new MediaFeature { MediaFeature = MediaFeature.PrefersColorScheme, Value = "dark" },
+        ///   new MediaFeature { MediaFeature = MediaFeature.PrefersReducedMotion, Value = "reduce" },
+        /// });
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('(prefers-color-scheme: dark)').matches)");
+        /// // → true
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('(prefers-color-scheme: light)').matches)");
+        /// // → false
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('(prefers-color-scheme: no-preference)').matches)");
+        /// // → false
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('(prefers-reduced-motion: reduce)').matches)");
+        /// // → true
+        /// await page.EvaluateFunctionAsync<bool>("() => matchMedia('(prefers-color-scheme: no-preference)').matches)");
+        /// // → false
+        /// ]]>
+        /// </code>
+        /// </example>
+        /// <returns>Emulate features task</returns>
+        public Task EmulateMediaFeaturesAsync(IEnumerable<MediaFeatureValue> features)
+            => Client.SendAsync("Emulation.setEmulatedMedia", new EmulationSetEmulatedMediaFeatureRequest { Features = features });
 
         /// <summary>
         /// Sets the viewport.
         /// In the case of multiple pages in a single browser, each page can have its own viewport size.
-        /// NOTE in certain cases, setting viewport will reload the page in order to set the isMobile or hasTouch properties.
+        /// <see cref="SetViewportAsync(ViewPortOptions)"/> will resize the page. A lot of websites don't expect phones to change size, so you should set the viewport before navigating to the page.
         /// </summary>
+        /// <example>
+        ///<![CDATA[
+        /// using(var page = await browser.NewPageAsync())
+        /// {
+        ///     await page.SetViewPortAsync(new ViewPortOptions
+        ///     {
+        ///         Width = 640, 
+        ///         Height = 480, 
+        ///         DeviceScaleFactor = 1
+        ///     });
+        ///     await page.goto('https://www.example.com');
+        /// }
+        /// ]]>
+        /// </example>
         /// <returns>The viewport task.</returns>
         /// <param name="viewport">Viewport options.</param>
         public async Task SetViewportAsync(ViewPortOptions viewport)
@@ -951,9 +1138,21 @@ namespace PuppeteerSharp
         /// </summary>
         /// <remarks>
         /// This method is a shortcut for calling two methods:
-        /// page.SetViewportAsync(userAgent)
-        /// page.SetUserAgentAsync(viewport)
+        /// <see cref="SetViewportAsync(ViewPortOptions)"/>
+        /// <see cref="SetUserAgentAsync(string)"/>
+        /// To aid emulation, puppeteer provides a list of device descriptors which can be obtained via the <see cref="Puppeteer.Devices"/>.
+        /// <see cref="EmulateAsync(DeviceDescriptor)"/> will resize the page. A lot of websites don't expect phones to change size, so you should emulate before navigating to the page.
         /// </remarks>
+        /// <example>
+        ///<![CDATA[
+        /// var iPhone = Puppeteer.Devices[DeviceDescriptorName.IPhone6];
+        /// using(var page = await browser.NewPageAsync())
+        /// {
+        ///     await page.EmulateAsync(iPhone);
+        ///     await page.goto('https://www.google.com');
+        /// }
+        /// ]]>
+        /// </example>
         /// <returns>Task.</returns>
         /// <param name="options">Emulation options.</param>
         public Task EmulateAsync(DeviceDescriptor options) => Task.WhenAll(
@@ -1095,13 +1294,11 @@ namespace PuppeteerSharp
                 {
                     return Client.SendAsync("Page.close");
                 }
-                else
+
+                return Client.Connection.SendAsync("Target.closeTarget", new TargetCloseTargetRequest
                 {
-                    return Client.Connection.SendAsync("Target.closeTarget", new TargetCloseTargetRequest
-                    {
-                        TargetId = Target.TargetId
-                    }).ContinueWith(task => Target.CloseTask);
-                }
+                    TargetId = Target.TargetId
+                }).ContinueWith(task => Target.CloseTask);
             }
 
             _logger.LogWarning("Protocol error: Connection closed. Most likely the page has been closed.");
@@ -1117,7 +1314,7 @@ namespace PuppeteerSharp
             => FrameManager.NetworkManager.SetCacheEnabledAsync(enabled);
 
         /// <summary>
-        /// Fetches an element with <paramref name="selector"/>, scrolls it into view if needed, and then uses <see cref="Page.Mouse"/> to click in the center of the element.
+        /// Fetches an element with <paramref name="selector"/>, scrolls it into view if needed, and then uses <see cref="Mouse"/> to click in the center of the element.
         /// </summary>
         /// <param name="selector">A selector to search for element to click. If there are multiple elements satisfying the selector, the first will be clicked.</param>
         /// <param name="options">click options</param>
@@ -1126,7 +1323,7 @@ namespace PuppeteerSharp
         public Task ClickAsync(string selector, ClickOptions options = null) => FrameManager.MainFrame.ClickAsync(selector, options);
 
         /// <summary>
-        /// Fetches an element with <paramref name="selector"/>, scrolls it into view if needed, and then uses <see cref="Page.Mouse"/> to hover over the center of the element.
+        /// Fetches an element with <paramref name="selector"/>, scrolls it into view if needed, and then uses <see cref="Mouse"/> to hover over the center of the element.
         /// </summary>
         /// <param name="selector">A selector to search for element to hover. If there are multiple elements satisfying the selector, the first will be hovered.</param>
         /// <exception cref="SelectorException">If there's no element matching <paramref name="selector"/></exception>
@@ -1153,8 +1350,8 @@ namespace PuppeteerSharp
         /// </remarks>
         /// <example>
         /// <code>
-        /// page.TypeAsync("#mytextarea", "Hello"); // Types instantly
-        /// page.TypeAsync("#mytextarea", "World", new TypeOptions { Delay = 100 }); // Types slower, like a user
+        /// await page.TypeAsync("#mytextarea", "Hello"); // Types instantly
+        /// await page.TypeAsync("#mytextarea", "World", new TypeOptions { Delay = 100 }); // Types slower, like a user
         /// </code>
         /// </example>
         /// <returns>Task</returns>
@@ -1432,11 +1629,17 @@ namespace PuppeteerSharp
 
             FrameManager.NetworkManager.Request += requestEventListener;
 
-            return await requestTcs.Task.WithTimeout(timeout, t =>
+            await Task.WhenAny(requestTcs.Task, SessionClosedTask).WithTimeout(timeout, t =>
             {
                 FrameManager.NetworkManager.Request -= requestEventListener;
-                return new TimeoutException($"Timeout Exceeded: {t.TotalMilliseconds}ms exceeded");
+                return new TimeoutException($"Timeout of {t.TotalMilliseconds} ms exceeded");
             }).ConfigureAwait(false);
+
+            if (SessionClosedTask.IsFaulted)
+            {
+                await SessionClosedTask;
+            }
+            return await requestTcs.Task;
         }
 
         /// <summary>
@@ -1486,13 +1689,67 @@ namespace PuppeteerSharp
 
             FrameManager.NetworkManager.Response += responseEventListener;
 
-            return await responseTcs.Task.WithTimeout(timeout).ConfigureAwait(false);
+            await Task.WhenAny(responseTcs.Task, SessionClosedTask).WithTimeout(timeout).ConfigureAwait(false);
+
+            if (SessionClosedTask.IsFaulted)
+            {
+                await SessionClosedTask;
+            }
+            return await responseTcs.Task;
+        }
+
+        /// <summary>
+        /// Waits for a page to open a file picker
+        /// </summary>
+        /// <remarks>
+        /// In non-headless Chromium, this method results in the native file picker dialog **not showing up** for the user.
+        /// </remarks>
+        /// <example>
+        /// This method is typically coupled with an action that triggers file choosing.
+        /// The following example clicks a button that issues a file chooser, and then
+        /// responds with `/tmp/myfile.pdf` as if a user has selected this file.
+        /// <code>
+        /// <![CDATA[
+        /// var waitTask = page.WaitForFileChooserAsync();
+        /// await Task.WhenAll(
+        ///     waitTask,
+        ///     page.ClickAsync("#upload-file-button")); // some button that triggers file selection
+        /// 
+        /// await waitTask.Result.AcceptAsync('/tmp/myfile.pdf');
+        /// ]]>
+        /// </code>
+        /// 
+        /// This must be called *before* the file chooser is launched. It will not return a currently active file chooser.
+        /// </example>
+        /// <param name="options">Optional waiting parameters.</param>
+        /// <returns>A task that resolves after a page requests a file picker.</returns>
+        public async Task<FileChooser> WaitForFileChooserAsync(WaitForFileChooserOptions options = null)
+        {
+            if (_fileChooserInterceptionIsDisabled)
+            {
+                throw new PuppeteerException("File chooser handling does not work with multiple connections to the same page");
+            }
+
+            var timeout = options?.Timeout ?? _timeoutSettings.Timeout;
+            var tcs = new TaskCompletionSource<FileChooser>();
+            var guid = Guid.NewGuid();
+            _fileChooserInterceptors.TryAdd(guid, tcs);
+
+            try
+            {
+                return await tcs.Task.WithTimeout(timeout).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _fileChooserInterceptors.TryRemove(guid, out _);
+                throw ex;
+            }
         }
 
         /// <summary>
         /// Navigate to the previous page in history.
         /// </summary>
-        /// <returns>Task which which resolves to the main resource response. In case of multiple redirects, 
+        /// <returns>Task that resolves to the main resource response. In case of multiple redirects, 
         /// the navigation will resolve with the response of the last redirect. If can not go back, resolves to null.</returns>
         /// <param name="options">Navigation parameters.</param>
         public Task<Response> GoBackAsync(NavigationOptions options = null) => GoAsync(-1, options);
@@ -1500,7 +1757,7 @@ namespace PuppeteerSharp
         /// <summary>
         /// Navigate to the next page in history.
         /// </summary>
-        /// <returns>Task which which resolves to the main resource response. In case of multiple redirects, 
+        /// <returns>Task that resolves to the main resource response. In case of multiple redirects, 
         /// the navigation will resolve with the response of the last redirect. If can not go forward, resolves to null.</returns>
         /// <param name="options">Navigation parameters.</param>
         public Task<Response> GoForwardAsync(NavigationOptions options = null) => GoAsync(1, options);
@@ -1519,6 +1776,34 @@ namespace PuppeteerSharp
 
             return Task.CompletedTask;
         }
+
+        /// <summary>
+        /// Brings page to front (activates tab).
+        /// </summary>
+        /// <returns>A task that resolves when the message has been sent to Chromium.</returns>
+        public Task BringToFrontAsync() => Client.SendAsync("Page.bringToFront");
+
+        /// <summary>
+        /// Changes the timezone of the page.
+        /// </summary>
+        /// <param name="timezoneId">Timezone to set. See <seealso href="https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1" >ICU’s `metaZones.txt`</seealso>
+        /// for a list of supported timezone IDs. Passing `null` disables timezone emulation.</param>
+        /// <returns>The viewport task.</returns>
+        public async Task EmulateTimezoneAsync(string timezoneId)
+        {
+            try
+            {
+                await Client.SendAsync("Emulation.setTimezoneOverride", new EmulateTimezoneRequest
+                {
+                    TimezoneId = timezoneId ?? string.Empty
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex.Message.Contains("Invalid timezone"))
+            {
+                throw new PuppeteerException($"Invalid timezone ID: { timezoneId }");
+            }
+        }
+
         #endregion
 
         internal void OnPopup(Page popupPage) => Popup?.Invoke(this, new PopupEventArgs { PopupPage = popupPage });
@@ -1534,24 +1819,6 @@ namespace PuppeteerSharp
         {
             var page = new Page(client, target, screenshotTaskQueue);
             await page.InitializeAsync(ignoreHTTPSErrors).ConfigureAwait(false);
-
-            await Task.WhenAll(
-                client.SendAsync("Target.setAutoAttach", new TargetSetAutoAttachRequest
-                {
-                    AutoAttach = true,
-                    WaitForDebuggerOnStart = false,
-                    Flatten = true
-                }),
-                client.SendAsync("Page.setLifecycleEventsEnabled", new PageSetLifecycleEventsEnabledRequest
-                {
-                    Enabled = true
-                }),
-                client.SendAsync("Network.enable", null),
-                client.SendAsync("Runtime.enable", null),
-                client.SendAsync("Security.enable", null),
-                client.SendAsync("Performance.enable", null),
-                client.SendAsync("Log.enable", null)
-            ).ConfigureAwait(false);
 
             if (defaultViewPort != null)
             {
@@ -1575,6 +1842,29 @@ namespace PuppeteerSharp
             networkManager.RequestFailed += (sender, e) => RequestFailed?.Invoke(this, e);
             networkManager.Response += (sender, e) => Response?.Invoke(this, e);
             networkManager.RequestFinished += (sender, e) => RequestFinished?.Invoke(this, e);
+
+            await Task.WhenAll(
+               Client.SendAsync("Target.setAutoAttach", new TargetSetAutoAttachRequest
+               {
+                   AutoAttach = true,
+                   WaitForDebuggerOnStart = false,
+                   Flatten = true
+               }),
+               Client.SendAsync("Performance.enable", null),
+               Client.SendAsync("Log.enable", null)
+           ).ConfigureAwait(false);
+
+            try
+            {
+                await Client.SendAsync("Page.setInterceptFileChooserDialog", new PageSetInterceptFileChooserDialog
+                {
+                    Enabled = true
+                }).ConfigureAwait(false);
+            }
+            catch
+            {
+                _fileChooserInterceptionIsDisabled = true;
+            }
         }
 
         private async Task<Response> GoAsync(int delta, NavigationOptions options)
@@ -1754,8 +2044,7 @@ namespace PuppeteerSharp
                 return 0;
             }
 
-            var pixels = 0m;
-
+            decimal pixels;
             if (parameter is decimal || parameter is int)
             {
                 pixels = Convert.ToDecimal(parameter);
@@ -1764,8 +2053,7 @@ namespace PuppeteerSharp
             {
                 var text = parameter.ToString();
                 var unit = text.Substring(text.Length - 2).ToLower();
-                var valueText = "";
-
+                string valueText;
                 if (_unitToPixels.ContainsKey(unit))
                 {
                     valueText = text.Substring(0, text.Length - 2);
@@ -1830,6 +2118,9 @@ namespace PuppeteerSharp
                     case "Runtime.bindingCalled":
                         await OnBindingCalled(e.MessageData.ToObject<BindingCalledResponse>(true)).ConfigureAwait(false);
                         break;
+                    case "Page.fileChooserOpened":
+                        await OnFileChooserAsync(e.MessageData.ToObject<PageFileChooserOpenedResponse>(true)).ConfigureAwait(false);
+                        break;
                 }
             }
             catch (Exception ex)
@@ -1840,10 +2131,39 @@ namespace PuppeteerSharp
             }
         }
 
+        private async Task OnFileChooserAsync(PageFileChooserOpenedResponse e)
+        {
+            if (_fileChooserInterceptors.Count == 0)
+            {
+                try
+                {
+                    await Client.SendAsync("Page.handleFileChooser", new PageHandleFileChooserRequest
+                    {
+                        Action = FileChooserAction.Fallback
+                    }).ConfigureAwait(false);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, ex.ToString());
+                }
+            }
+
+            var fileChooser = new FileChooser(Client, e);
+            while (_fileChooserInterceptors.Count > 0)
+            {
+                var key = _fileChooserInterceptors.FirstOrDefault().Key;
+
+                if (_fileChooserInterceptors.TryRemove(key, out var tcs))
+                {
+                    tcs.TrySetResult(fileChooser);
+                }
+            }
+        }
+
         private async Task OnBindingCalled(BindingCalledResponse e)
         {
-            string expression = null;
-
+            string expression;
             try
             {
                 var result = await ExecuteBinding(e).ConfigureAwait(false);
