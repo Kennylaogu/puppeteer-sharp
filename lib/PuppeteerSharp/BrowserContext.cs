@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -89,7 +89,13 @@ namespace PuppeteerSharp
         /// Creates a new page
         /// </summary>
         /// <returns>Task which resolves to a new <see cref="Page"/> object</returns>
-        public Task<Page> NewPageAsync() => Browser.CreatePageInContextAsync(_id);
+        public Task<Page> NewPageAsync() => Browser.CreatePageInContextAsync(_id, false);
+
+        /// <summary>
+        /// Creates a new window
+        /// </summary>
+        /// <returns>Task which resolves to a new <see cref="Page"/> object</returns>
+        public Task<Page> NewWindowAsync() => Browser.CreatePageInContextAsync(_id, true);
 
         /// <summary>
         /// Closes the browser context. All the targets that belong to the browser context will be closed

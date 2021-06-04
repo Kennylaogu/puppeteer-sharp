@@ -181,6 +181,12 @@ namespace PuppeteerSharp
         public Task<Page> NewPageAsync() => DefaultContext.NewPageAsync();
 
         /// <summary>
+        /// Creates a new window
+        /// </summary>
+        /// <returns>Task which resolves to a new <see cref="Page"/> object</returns>
+        public Task<Page> NewWindowAsync() => DefaultContext.NewWindowAsync();
+
+        /// <summary>
         /// Returns An Array of all active targets
         /// </summary>
         /// <returns>An Array of all active targets</returns>
@@ -380,11 +386,12 @@ namespace PuppeteerSharp
             target.BrowserContext.OnTargetChanged(this, args);
         }
 
-        internal async Task<Page> CreatePageInContextAsync(string contextId)
+        internal async Task<Page> CreatePageInContextAsync(string contextId, bool newWindow)
         {
             var createTargetRequest = new TargetCreateTargetRequest
             {
-                Url = "about:blank"
+                Url = "about:blank",
+                NewWindow = newWindow
             };
 
             if (contextId != null)

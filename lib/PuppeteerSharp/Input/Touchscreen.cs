@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using PuppeteerSharp.Messaging;
 
@@ -47,6 +47,80 @@ namespace PuppeteerSharp.Input
                 Type = "touchStart",
                 TouchPoints = touchPoints,
                 Modifiers = _keyboard.Modifiers
+            }).ConfigureAwait(false);
+            await _client.SendAsync("Input.dispatchTouchEvent", new InputDispatchTouchEventRequest
+            {
+                Type = "touchEnd",
+                TouchPoints = Array.Empty<TouchPoint>(),
+                Modifiers = _keyboard.Modifiers
+            }).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Touch start
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <returns></returns>
+        public async Task TouchStart(decimal x, decimal y)
+        {
+            // Touches appear to be lost during the first frame after navigation.
+            // This waits a frame before sending the tap.
+            // @see https://crbug.com/613219
+            await _client.SendAsync("Runtime.evaluate", new RuntimeEvaluateRequest
+            {
+                Expression = "new Promise(x => requestAnimationFrame(() => requestAnimationFrame(x)))",
+                AwaitPromise = true
+            }).ConfigureAwait(false);
+
+            var touchPoints = new[] { new TouchPoint { X = Math.Round(x), Y = Math.Round(y) } };
+            await _client.SendAsync("Input.dispatchTouchEvent", new InputDispatchTouchEventRequest
+            {
+                Type = "touchStart",
+                TouchPoints = touchPoints,
+                Modifiers = _keyboard.Modifiers
+            }).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Touch move
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <returns></returns>
+        public async Task TouchMove(decimal x, decimal y)
+        {
+            // Touches appear to be lost during the first frame after navigation.
+            // This waits a frame before sending the tap.
+            // @see https://crbug.com/613219
+            await _client.SendAsync("Runtime.evaluate", new RuntimeEvaluateRequest
+            {
+                Expression = "new Promise(x => requestAnimationFrame(() => requestAnimationFrame(x)))",
+                AwaitPromise = true
+            }).ConfigureAwait(false);
+
+            var touchPoints = new[] { new TouchPoint { X = Math.Round(x), Y = Math.Round(y) } };
+            await _client.SendAsync("Input.dispatchTouchEvent", new InputDispatchTouchEventRequest
+            {
+                Type = "touchMove",
+                TouchPoints = touchPoints,
+                Modifiers = _keyboard.Modifiers
+            }).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Touch start
+        /// </summary>
+        /// <returns></returns>
+        public async Task TouchEnd()
+        {
+            // Touches appear to be lost during the first frame after navigation.
+            // This waits a frame before sending the tap.
+            // @see https://crbug.com/613219
+            await _client.SendAsync("Runtime.evaluate", new RuntimeEvaluateRequest
+            {
+                Expression = "new Promise(x => requestAnimationFrame(() => requestAnimationFrame(x)))",
+                AwaitPromise = true
             }).ConfigureAwait(false);
             await _client.SendAsync("Input.dispatchTouchEvent", new InputDispatchTouchEventRequest
             {
