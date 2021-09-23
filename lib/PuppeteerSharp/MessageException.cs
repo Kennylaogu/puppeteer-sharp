@@ -1,14 +1,20 @@
-﻿using System;
-using Newtonsoft.Json.Linq;
+using System;
 using PuppeteerSharp.Messaging;
 
 namespace PuppeteerSharp
 {
     /// <summary>
-    /// Exception thrown by <seealso cref="CDPSession.SendAsync(string, object)"/>
+    /// Exception thrown by <seealso cref="CDPSession.SendAsync{T}(string, object)"/>
     /// </summary>
     public class MessageException : PuppeteerException
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MessageException"/> class.
+        /// </summary>
+        public MessageException()
+        {
+        }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="MessageException"/> class.
         /// </summary>

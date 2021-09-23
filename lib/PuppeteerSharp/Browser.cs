@@ -87,7 +87,7 @@ namespace PuppeteerSharp
         #region Properties
 
         /// <summary>
-        /// Raised when the <see cref="Browser"/> gets closed. 
+        /// Raised when the <see cref="Browser"/> gets closed.
         /// </summary>
         public event EventHandler Closed;
 
@@ -158,8 +158,11 @@ namespace PuppeteerSharp
         public BrowserContext DefaultContext { get; }
 
         internal TaskQueue ScreenshotTaskQueue { get; set; }
+
         internal Connection Connection { get; }
+
         internal ViewPortOptions DefaultViewport { get; }
+
         internal LauncherBase Launcher { get; set; }
 
         /// <summary>
@@ -238,7 +241,7 @@ namespace PuppeteerSharp
 
         /// <summary>
         /// Returns a Task which resolves to an array of all open pages.
-        /// Non visible pages, such as <c>"background_page"</c>, will not be listed here. You can find them using <see cref="Target.PageAsync"/>
+        /// Non visible pages, such as <c>"background_page"</c>, will not be listed here. You can find them using <see cref="PuppeteerSharp.Target.PageAsync"/>
         /// </summary>
         /// <returns>Task which resolves to an array of all open pages inside the Browser.
         /// In case of multiple browser contexts, the method will return an array with all the pages in all browser contexts.
@@ -295,7 +298,7 @@ namespace PuppeteerSharp
         /// <returns>Resolves to the first target found that matches the predicate function.</returns>
         public async Task<Target> WaitForTargetAsync(Func<Target, bool> predicate, WaitForOptions options = null)
         {
-            int timeout = options?.Timeout ?? DefaultWaitForTimeout;
+            var timeout = options?.Timeout ?? DefaultWaitForTimeout;
             var existingTarget = Targets().FirstOrDefault(predicate);
             if (existingTarget != null)
             {
@@ -399,7 +402,7 @@ namespace PuppeteerSharp
                 createTargetRequest.BrowserContextId = contextId;
             }
 
-            string targetId = (await Connection.SendAsync<TargetCreateTargetResponse>("Target.createTarget", createTargetRequest)
+            var targetId = (await Connection.SendAsync<TargetCreateTargetResponse>("Target.createTarget", createTargetRequest)
                 .ConfigureAwait(false)).TargetId;
             var target = TargetsMap[targetId];
             await target.InitializedTask.ConfigureAwait(false);
@@ -424,7 +427,7 @@ namespace PuppeteerSharp
             }
             catch (Exception ex)
             {
-                string message = $"Browser failed to process Connection Close. {ex.Message}. {ex.StackTrace}";
+                var message = $"Browser failed to process Connection Close. {ex.Message}. {ex.StackTrace}";
                 _logger.LogError(ex, message);
                 Connection.Close(message);
             }
@@ -451,7 +454,7 @@ namespace PuppeteerSharp
             }
             catch (Exception ex)
             {
-                string message = $"Browser failed to process {e.MessageID}. {ex.Message}. {ex.StackTrace}";
+                var message = $"Browser failed to process {e.MessageID}. {ex.Message}. {ex.StackTrace}";
                 _logger.LogError(ex, message);
                 Connection.Close(message);
             }
@@ -491,7 +494,7 @@ namespace PuppeteerSharp
         private async Task CreateTargetAsync(TargetCreatedResponse e)
         {
             var targetInfo = e.TargetInfo;
-            string browserContextId = targetInfo.BrowserContextId;
+            var browserContextId = targetInfo.BrowserContextId;
 
             if (!(browserContextId != null && _contexts.TryGetValue(browserContextId, out var context)))
             {

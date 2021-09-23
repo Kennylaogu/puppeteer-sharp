@@ -1,4 +1,4 @@
-﻿namespace PuppeteerSharp.Input
+namespace PuppeteerSharp.Input
 {
     /// <summary>
     /// Utility class to be used with <see cref="Keyboard"/> operations
@@ -6,6 +6,7 @@
     public class Key
     {
         private readonly string _value;
+
         private Key(string value) => _value = value;
         /// <summary>
         /// Cancel key.

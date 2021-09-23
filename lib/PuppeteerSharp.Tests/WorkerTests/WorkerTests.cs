@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 using PuppeteerSharp.Helpers;
+using PuppeteerSharp.Tests.Attributes;
 
 namespace PuppeteerSharp.Tests.WorkerTests
 {
@@ -12,14 +13,14 @@ namespace PuppeteerSharp.Tests.WorkerTests
         {
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task PageWorkers()
         {
             var workerCreatedTcs = new TaskCompletionSource<bool>();
             var workerDestroyedTcs = new TaskCompletionSource<bool>();
 
-            Page.WorkerCreated += (sender, e) => workerCreatedTcs.TrySetResult(true);
-            Page.WorkerDestroyed += (sender, e) => workerDestroyedTcs.TrySetResult(true);
+            Page.WorkerCreated += (_, _) => workerCreatedTcs.TrySetResult(true);
+            Page.WorkerDestroyed += (_, _) => workerDestroyedTcs.TrySetResult(true);
 
             await Task.WhenAll(
                 workerCreatedTcs.Task,
@@ -34,25 +35,25 @@ namespace PuppeteerSharp.Tests.WorkerTests
             Assert.Empty(Page.Workers);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldEmitCreatedAndDestroyedEvents()
         {
             var workerCreatedTcs = new TaskCompletionSource<Worker>();
-            Page.WorkerCreated += (sender, e) => workerCreatedTcs.TrySetResult(e.Worker);
+            Page.WorkerCreated += (_, e) => workerCreatedTcs.TrySetResult(e.Worker);
 
             var workerObj = await Page.EvaluateFunctionHandleAsync("() => new Worker('data:text/javascript,1')");
             var worker = await workerCreatedTcs.Task;
             var workerDestroyedTcs = new TaskCompletionSource<Worker>();
-            Page.WorkerDestroyed += (sender, e) => workerDestroyedTcs.TrySetResult(e.Worker);
+            Page.WorkerDestroyed += (_, e) => workerDestroyedTcs.TrySetResult(e.Worker);
             await Page.EvaluateFunctionAsync("workerObj => workerObj.terminate()", workerObj);
             Assert.Same(worker, await workerDestroyedTcs.Task);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldReportConsoleLogs()
         {
             var consoleTcs = new TaskCompletionSource<ConsoleMessage>();
-            Page.Console += (sender, e) => consoleTcs.TrySetResult(e.Message);
+            Page.Console += (_, e) => consoleTcs.TrySetResult(e.Message);
 
             await Page.EvaluateFunctionAsync("() => new Worker(`data:text/javascript,console.log(1)`)");
 
@@ -60,17 +61,17 @@ namespace PuppeteerSharp.Tests.WorkerTests
             Assert.Equal("1", log.Text);
             Assert.Equal(new ConsoleMessageLocation
             {
-                URL = "data:text/javascript,console.log(1)",
+                URL = "",
                 LineNumber = 0,
                 ColumnNumber = 8
             }, log.Location);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldHaveJSHandlesForConsoleLogs()
         {
             var consoleTcs = new TaskCompletionSource<ConsoleMessage>();
-            Page.Console += (sender, e) =>
+            Page.Console += (_, e) =>
             {
                 consoleTcs.TrySetResult(e.Message);
             };
@@ -82,22 +83,22 @@ namespace PuppeteerSharp.Tests.WorkerTests
             Assert.Equal("null", json);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldHaveAnExecutionContext()
         {
             var workerCreatedTcs = new TaskCompletionSource<Worker>();
-            Page.WorkerCreated += (sender, e) => workerCreatedTcs.TrySetResult(e.Worker);
+            Page.WorkerCreated += (_, e) => workerCreatedTcs.TrySetResult(e.Worker);
 
             await Page.EvaluateFunctionAsync("() => new Worker(`data:text/javascript,console.log(1)`)");
             var worker = await workerCreatedTcs.Task;
             Assert.Equal(2, await worker.EvaluateExpressionAsync<int>("1+1"));
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldReportErrors()
         {
             var errorTcs = new TaskCompletionSource<string>();
-            Page.PageError += (sender, e) => errorTcs.TrySetResult(e.Message);
+            Page.PageError += (_, e) => errorTcs.TrySetResult(e.Message);
 
             await Page.EvaluateFunctionAsync("() => new Worker(`data:text/javascript, throw new Error('this is my error');`)");
             var errorLog = await errorTcs.Task;

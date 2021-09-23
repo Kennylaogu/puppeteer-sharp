@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Newtonsoft.Json.Linq;
+using PuppeteerSharp.Tests.Attributes;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -18,11 +19,11 @@ namespace PuppeteerSharp.Tests.NetworkTests
         {
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task PageEventsRequest()
         {
             var requests = new List<Request>();
-            Page.Request += (sender, e) => requests.Add(e.Request);
+            Page.Request += (_, e) => requests.Add(e.Request);
             await Page.GoToAsync(TestConstants.EmptyPage);
             Assert.Single(requests);
             Assert.Equal(TestConstants.EmptyPage, requests[0].Url);
@@ -33,11 +34,11 @@ namespace PuppeteerSharp.Tests.NetworkTests
             Assert.Equal(TestConstants.EmptyPage, requests[0].Frame.Url);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task PageEventsResponse()
         {
             var responses = new List<Response>();
-            Page.Response += (sender, e) => responses.Add(e.Response);
+            Page.Response += (_, e) => responses.Add(e.Response);
             await Page.GoToAsync(TestConstants.EmptyPage);
             Assert.Single(responses);
             Assert.Equal(TestConstants.EmptyPage, responses[0].Url);
@@ -52,11 +53,11 @@ namespace PuppeteerSharp.Tests.NetworkTests
             Assert.Equal(TestConstants.Port, remoteAddress.Port);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task PageEventsRequestFailed()
         {
             await Page.SetRequestInterceptionAsync(true);
-            Page.Request += async (sender, e) =>
+            Page.Request += async (_, e) =>
             {
                 if (e.Request.Url.EndsWith("css"))
                 {
@@ -68,7 +69,7 @@ namespace PuppeteerSharp.Tests.NetworkTests
                 }
             };
             var failedRequests = new List<Request>();
-            Page.RequestFailed += (sender, e) => failedRequests.Add(e.Request);
+            Page.RequestFailed += (_, e) => failedRequests.Add(e.Request);
             await Page.GoToAsync(TestConstants.ServerUrl + "/one-style.html");
 
             Assert.Single(failedRequests);
@@ -88,11 +89,11 @@ namespace PuppeteerSharp.Tests.NetworkTests
             Assert.NotNull(failedRequests[0].Frame);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task PageEventsRequestFinished()
         {
             var requests = new List<Request>();
-            Page.RequestFinished += (sender, e) => requests.Add(e.Request);
+            Page.RequestFinished += (_, e) => requests.Add(e.Request);
             await Page.GoToAsync(TestConstants.EmptyPage);
             Assert.Single(requests);
             Assert.Equal(TestConstants.EmptyPage, requests[0].Url);
@@ -102,25 +103,25 @@ namespace PuppeteerSharp.Tests.NetworkTests
             Assert.Equal(TestConstants.EmptyPage, requests[0].Frame.Url);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldFireEventsInProperOrder()
         {
             var events = new List<string>();
-            Page.Request += (sender, e) => events.Add("request");
-            Page.Response += (sender, e) => events.Add("response");
-            Page.RequestFinished += (sender, e) => events.Add("requestfinished");
+            Page.Request += (_, _) => events.Add("request");
+            Page.Response += (_, _) => events.Add("response");
+            Page.RequestFinished += (_, _) => events.Add("requestfinished");
             await Page.GoToAsync(TestConstants.EmptyPage);
             Assert.Equal(new[] { "request", "response", "requestfinished" }, events);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldSupportRedirects()
         {
             var events = new List<string>();
-            Page.Request += (sender, e) => events.Add($"{e.Request.Method} {e.Request.Url}");
-            Page.Response += (sender, e) => events.Add($"{(int)e.Response.Status} {e.Response.Url}");
-            Page.RequestFinished += (sender, e) => events.Add($"DONE {e.Request.Url}");
-            Page.RequestFailed += (sender, e) => events.Add($"FAIL {e.Request.Url}");
+            Page.Request += (_, e) => events.Add($"{e.Request.Method} {e.Request.Url}");
+            Page.Response += (_, e) => events.Add($"{(int)e.Response.Status} {e.Response.Url}");
+            Page.RequestFinished += (_, e) => events.Add($"DONE {e.Request.Url}");
+            Page.RequestFailed += (_, e) => events.Add($"FAIL {e.Request.Url}");
             Server.SetRedirect("/foo.html", "/empty.html");
             const string FOO_URL = TestConstants.ServerUrl + "/foo.html";
             var response = await Page.GoToAsync(FOO_URL);

@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using PuppeteerSharp.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -23,13 +24,14 @@ namespace PuppeteerSharp.Tests.BrowserContextTests
             Page = await Context.NewPageAsync();
         }
 
-        [Fact]
+        [PuppeteerTest("defaultbrowsercontext.spec.ts", "DefaultBrowserContext", "page.cookies() should work")]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task PageGetCookiesAsyncShouldWork()
         {
             await Page.GoToAsync(TestConstants.EmptyPage);
 
             await Page.EvaluateExpressionAsync("document.cookie = 'username=John Doe'");
-            var cookie = (await Page.GetCookiesAsync()).FirstOrDefault();
+            var cookie = (await Page.GetCookiesAsync()).First();
             Assert.Equal("username", cookie.Name);
             Assert.Equal("John Doe", cookie.Value);
             Assert.Equal("localhost", cookie.Domain);
@@ -41,7 +43,8 @@ namespace PuppeteerSharp.Tests.BrowserContextTests
             Assert.True(cookie.Session);
         }
 
-        [Fact]
+        [PuppeteerTest("defaultbrowsercontext.spec.ts", "DefaultBrowserContext", "page.setCookie() should work")]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task PageSetCookiesAsyncShouldWork()
         {
             await Page.GoToAsync(TestConstants.EmptyPage);
@@ -52,7 +55,7 @@ namespace PuppeteerSharp.Tests.BrowserContextTests
                 Value = "John Doe"
             });
 
-            var cookie = (await Page.GetCookiesAsync()).FirstOrDefault();
+            var cookie = (await Page.GetCookiesAsync()).First();
             Assert.Equal("username", cookie.Name);
             Assert.Equal("John Doe", cookie.Value);
             Assert.Equal("localhost", cookie.Domain);
@@ -64,7 +67,8 @@ namespace PuppeteerSharp.Tests.BrowserContextTests
             Assert.True(cookie.Session);
         }
 
-        [Fact]
+        [PuppeteerTest("defaultbrowsercontext.spec.ts", "DefaultBrowserContext", "page.deleteCookie() should work")]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task PageDeleteCookieAsyncShouldWork()
         {
             await Page.GoToAsync(TestConstants.EmptyPage);
@@ -88,7 +92,7 @@ namespace PuppeteerSharp.Tests.BrowserContextTests
             });
             Assert.Equal("cookie1=1", await Page.EvaluateExpressionAsync<string>("document.cookie"));
 
-            var cookie = (await Page.GetCookiesAsync()).FirstOrDefault();
+            var cookie = (await Page.GetCookiesAsync()).First();
             Assert.Equal("cookie1", cookie.Name);
             Assert.Equal("1", cookie.Value);
             Assert.Equal("localhost", cookie.Domain);

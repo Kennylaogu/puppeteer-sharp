@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -42,6 +42,7 @@ namespace PuppeteerSharp
             "disabled-by-default-devtools.timeline.stack",
             "disabled-by-default-v8.cpu_profiler",
         };
+
         private readonly ILogger _logger;
 
         internal Tracing(CDPSession client)

@@ -13,7 +13,7 @@ using PuppeteerSharp.Messaging;
 namespace PuppeteerSharp
 {
     /// <summary>
-    /// Inherits from <see cref="JSHandle"/>. It represents an in-page DOM element. 
+    /// Inherits from <see cref="JSHandle"/>. It represents an in-page DOM element.
     /// ElementHandles can be created by <see cref="PuppeteerSharp.Page.QuerySelectorAsync(string)"/> or <see cref="PuppeteerSharp.Page.QuerySelectorAllAsync(string)"/>.
     /// </summary>
     public class ElementHandle : JSHandle
@@ -36,22 +36,22 @@ namespace PuppeteerSharp
         internal Page Page { get; }
 
         /// <summary>
-        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotDataAsync(ScreenshotOptions)"/> to take a screenshot of the element. 
+        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotDataAsync(ScreenshotOptions)"/> to take a screenshot of the element.
         /// If the element is detached from DOM, the method throws an error.
         /// </summary>
         /// <returns>The task</returns>
-        /// <param name="file">The file path to save the image to. The screenshot type will be inferred from file extension. 
-        /// If path is a relative path, then it is resolved relative to current working directory. If no path is provided, 
+        /// <param name="file">The file path to save the image to. The screenshot type will be inferred from file extension.
+        /// If path is a relative path, then it is resolved relative to current working directory. If no path is provided,
         /// the image won't be saved to the disk.</param>
         public Task ScreenshotAsync(string file) => ScreenshotAsync(file, new ScreenshotOptions());
 
         /// <summary>
-        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotDataAsync(ScreenshotOptions)"/> to take a screenshot of the element. 
+        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotDataAsync(ScreenshotOptions)"/> to take a screenshot of the element.
         /// If the element is detached from DOM, the method throws an error.
         /// </summary>
         /// <returns>The task</returns>
-        /// <param name="file">The file path to save the image to. The screenshot type will be inferred from file extension. 
-        /// If path is a relative path, then it is resolved relative to current working directory. If no path is provided, 
+        /// <param name="file">The file path to save the image to. The screenshot type will be inferred from file extension.
+        /// If path is a relative path, then it is resolved relative to current working directory. If no path is provided,
         /// the image won't be saved to the disk.</param>
         /// <param name="options">Screenshot options.</param>
         public async Task ScreenshotAsync(string file, ScreenshotOptions options)
@@ -70,14 +70,14 @@ namespace PuppeteerSharp
         }
 
         /// <summary>
-        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotDataAsync(ScreenshotOptions)"/> to take a screenshot of the element. 
+        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotDataAsync(ScreenshotOptions)"/> to take a screenshot of the element.
         /// If the element is detached from DOM, the method throws an error.
         /// </summary>
         /// <returns>Task which resolves to a <see cref="Stream"/> containing the image data.</returns>
         public Task<Stream> ScreenshotStreamAsync() => ScreenshotStreamAsync(new ScreenshotOptions());
 
         /// <summary>
-        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotDataAsync(ScreenshotOptions)"/> to take a screenshot of the element. 
+        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotDataAsync(ScreenshotOptions)"/> to take a screenshot of the element.
         /// If the element is detached from DOM, the method throws an error.
         /// </summary>
         /// <returns>Task which resolves to a <see cref="Stream"/> containing the image data.</returns>
@@ -86,14 +86,14 @@ namespace PuppeteerSharp
             => new MemoryStream(await ScreenshotDataAsync(options).ConfigureAwait(false));
 
         /// <summary>
-        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotDataAsync(ScreenshotOptions)"/> to take a screenshot of the element. 
+        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotDataAsync(ScreenshotOptions)"/> to take a screenshot of the element.
         /// If the element is detached from DOM, the method throws an error.
         /// </summary>
         /// <returns>Task which resolves to a <see cref="byte"/>[] containing the image data.</returns>
         public Task<byte[]> ScreenshotDataAsync() => ScreenshotDataAsync(new ScreenshotOptions());
 
         /// <summary>
-        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotDataAsync(ScreenshotOptions)"/> to take a screenshot of the element. 
+        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotDataAsync(ScreenshotOptions)"/> to take a screenshot of the element.
         /// If the element is detached from DOM, the method throws an error.
         /// </summary>
         /// <returns>Task which resolves to a <see cref="byte"/>[] containing the image data.</returns>
@@ -102,14 +102,14 @@ namespace PuppeteerSharp
             => Convert.FromBase64String(await ScreenshotBase64Async(options).ConfigureAwait(false));
 
         /// <summary>
-        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotBase64Async(ScreenshotOptions)"/> to take a screenshot of the element. 
+        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotBase64Async(ScreenshotOptions)"/> to take a screenshot of the element.
         /// If the element is detached from DOM, the method throws an error.
         /// </summary>
         /// <returns>Task which resolves to a <see cref="string"/> containing the image data as base64.</returns>
         public Task<string> ScreenshotBase64Async() => ScreenshotBase64Async(new ScreenshotOptions());
 
         /// <summary>
-        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotBase64Async(ScreenshotOptions)"/> to take a screenshot of the element. 
+        /// This method scrolls element into view if needed, and then uses <seealso cref="PuppeteerSharp.Page.ScreenshotBase64Async(ScreenshotOptions)"/> to take a screenshot of the element.
         /// If the element is detached from DOM, the method throws an error.
         /// </summary>
         /// <returns>Task which resolves to a <see cref="string"/> containing the image data as base64.</returns>
@@ -207,19 +207,46 @@ namespace PuppeteerSharp
         /// <summary>
         /// Uploads files
         /// </summary>
-        /// <param name="filePaths">Sets the value of the file input to these paths. Paths are resolved using <see cref="Path.GetFullPath(string)"/></param>
         /// <param name="resolveFilePaths">Set to true to resolve paths using <see cref="Path.GetFullPath(string)"/></param>
+        /// <param name="filePaths">Sets the value of the file input to these paths. Paths are resolved using <see cref="Path.GetFullPath(string)"/></param>
         /// <remarks>This method expects <c>elementHandle</c> to point to an <c>input element</c> <see href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input"/> </remarks>
         /// <returns>Task</returns>
-        public Task UploadFileAsync(bool resolveFilePaths, params string[] filePaths)
+        public async Task UploadFileAsync(bool resolveFilePaths, params string[] filePaths)
         {
-            var files = resolveFilePaths ? filePaths.Select(Path.GetFullPath).ToArray() : filePaths;
-            var objectId = RemoteObject.ObjectId;
-            return Client.SendAsync("DOM.setFileInputFiles", new DomSetFileInputFilesRequest
+            var isMultiple = await EvaluateFunctionAsync<bool>("element => element.multiple").ConfigureAwait(false);
+
+            if (!isMultiple && filePaths.Length > 1)
             {
-                ObjectId = objectId,
-                Files = files
-            });
+                throw new PuppeteerException("Multiple file uploads only work with <input type=file multiple>");
+            }
+
+            var objectId = RemoteObject.ObjectId;
+            var node = await Client.SendAsync<DomDescribeNodeResponse>("DOM.describeNode", new DomDescribeNodeRequest
+            {
+                ObjectId = RemoteObject.ObjectId
+            }).ConfigureAwait(false);
+            var backendNodeId = node.Node.BackendNodeId;
+
+            if (!filePaths.Any())
+            {
+                await EvaluateFunctionAsync(@"(element) => {
+                    element.files = new DataTransfer().files;
+
+                    // Dispatch events for this case because it should behave akin to a user action.
+                    element.dispatchEvent(new Event('input', { bubbles: true }));
+                    element.dispatchEvent(new Event('change', { bubbles: true }));
+                }").ConfigureAwait(false);
+            }
+            else
+            {
+                var files = resolveFilePaths ? filePaths.Select(Path.GetFullPath).ToArray() : filePaths;
+                await Client.SendAsync("DOM.setFileInputFiles", new DomSetFileInputFilesRequest
+                {
+                    ObjectId = objectId,
+                    Files = files,
+                    BackendNodeId = backendNodeId
+                }).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -354,7 +381,7 @@ namespace PuppeteerSharp
         }
 
         /// <summary>
-        /// This method returns the bounding box of the element (relative to the main frame), 
+        /// This method returns the bounding box of the element (relative to the main frame),
         /// or null if the element is not visible.
         /// </summary>
         /// <returns>The BoundingBox task.</returns>

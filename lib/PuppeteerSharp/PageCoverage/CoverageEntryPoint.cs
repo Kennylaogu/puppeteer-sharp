@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using PuppeteerSharp.Messaging;
 
 namespace PuppeteerSharp.PageCoverage
@@ -6,7 +6,9 @@ namespace PuppeteerSharp.PageCoverage
     internal class CoverageEntryPoint : IComparable<CoverageEntryPoint>
     {
         public int Offset { get; internal set; }
+
         public int Type { get; internal set; }
+
         public CoverageResponseRange Range { get; internal set; }
 
         public int CompareTo(CoverageEntryPoint other)

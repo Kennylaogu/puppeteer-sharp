@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http;
 using Xunit;
 using Xunit.Abstractions;
+using PuppeteerSharp.Helpers;
+using PuppeteerSharp.Tests.Attributes;
 
 namespace PuppeteerSharp.Tests.PuppeteerTests
 {
@@ -18,17 +20,17 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
             DefaultOptions.IgnoreHTTPSErrors = true;
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldWork()
         {
             var requestTask = HttpsServer.WaitForRequest(
                 "/empty.html",
-                request => request.HttpContext.Features.Get<ITlsHandshakeFeature>().Protocol);
+                request => request?.HttpContext?.Features?.Get<ITlsHandshakeFeature>()?.Protocol);
             var responseTask = Page.GoToAsync(TestConstants.HttpsPrefix + "/empty.html");
 
             await Task.WhenAll(
                 requestTask,
-                responseTask);
+                responseTask).WithTimeout();
 
             var response = responseTask.Result;
             Assert.Equal(HttpStatusCode.OK, response.Status);
@@ -38,22 +40,22 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
                 TestUtils.CurateProtocol(response.SecurityDetails.Protocol));
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task NetworkRedirectsShouldReportSecurityDetails()
         {
             var responses = new List<Response>();
             HttpsServer.SetRedirect("/plzredirect", "/empty.html");
 
-            Page.Response += (sender, e) => responses.Add(e.Response);
+            Page.Response += (_, e) => responses.Add(e.Response);
 
             var requestTask = HttpsServer.WaitForRequest(
                 "/empty.html",
-                request => request.HttpContext.Features.Get<ITlsHandshakeFeature>().Protocol);
+                request => request?.HttpContext?.Features?.Get<ITlsHandshakeFeature>()?.Protocol);
             var responseTask = Page.GoToAsync(TestConstants.HttpsPrefix + "/plzredirect");
 
             await Task.WhenAll(
                 requestTask,
-                responseTask);
+                responseTask).WithTimeout();
 
             var response = responseTask.Result;
 
@@ -64,16 +66,16 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
                 TestUtils.CurateProtocol(response.SecurityDetails.Protocol));
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldWorkWithRequestInterception()
         {
             await Page.SetRequestInterceptionAsync(true);
-            Page.Request += async (sender, e) => await e.Request.ContinueAsync();
+            Page.Request += async (_, e) => await e.Request.ContinueAsync();
             var response = await Page.GoToAsync(TestConstants.EmptyPage);
             Assert.Equal(HttpStatusCode.OK, response.Status);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldWorkWithMixedContent()
         {
             HttpsServer.SetRoute("/mixedcontent.html", async (context) =>

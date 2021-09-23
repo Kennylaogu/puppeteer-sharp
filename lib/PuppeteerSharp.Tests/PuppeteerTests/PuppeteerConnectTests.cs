@@ -1,10 +1,12 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections.Features;
 using PuppeteerSharp.Transport;
 using Xunit;
 using Xunit.Abstractions;
+using PuppeteerSharp.Helpers;
+using PuppeteerSharp.Tests.Attributes;
 
 namespace PuppeteerSharp.Tests.PuppeteerTests
 {
@@ -15,7 +17,7 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
         {
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldBeAbleToConnectMultipleTimesToSameBrowser()
         {
             var options = new ConnectOptions()
@@ -23,20 +25,20 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
                 BrowserWSEndpoint = Browser.WebSocketEndpoint
             };
             var browser = await Puppeteer.ConnectAsync(options, TestConstants.LoggerFactory);
-            using (var page = await browser.NewPageAsync())
+            await using (var page = await browser.NewPageAsync())
             {
                 var response = await page.EvaluateExpressionAsync<int>("7 * 8");
                 Assert.Equal(56, response);
             }
 
-            using (var originalPage = await Browser.NewPageAsync())
+            await using (var originalPage = await Browser.NewPageAsync())
             {
                 var response = await originalPage.EvaluateExpressionAsync<int>("7 * 6");
                 Assert.Equal(42, response);
             }
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldBeAbleToCloseRemoteBrowser()
         {
             var originalBrowser = await Puppeteer.LaunchAsync(TestConstants.DefaultBrowserOptions());
@@ -46,31 +48,31 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
             });
             var tcsDisconnected = new TaskCompletionSource<bool>();
 
-            originalBrowser.Disconnected += (sender, e) => tcsDisconnected.TrySetResult(true);
+            originalBrowser.Disconnected += (_, _) => tcsDisconnected.TrySetResult(true);
             await Task.WhenAll(
               tcsDisconnected.Task,
               remoteBrowser.CloseAsync());
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldSupportIgnoreHTTPSErrorsOption()
         {
-            using (var originalBrowser = await Puppeteer.LaunchAsync(TestConstants.DefaultBrowserOptions()))
-            using (var browser = await Puppeteer.ConnectAsync(new ConnectOptions
+            await using (var originalBrowser = await Puppeteer.LaunchAsync(TestConstants.DefaultBrowserOptions()))
+            await using (var browser = await Puppeteer.ConnectAsync(new ConnectOptions
             {
                 BrowserWSEndpoint = originalBrowser.WebSocketEndpoint,
                 IgnoreHTTPSErrors = true
             }))
-            using (var page = await browser.NewPageAsync())
+            await using (var page = await browser.NewPageAsync())
             {
                 var requestTask = HttpsServer.WaitForRequest(
                     "/empty.html",
-                    request => request.HttpContext.Features.Get<ITlsHandshakeFeature>().Protocol);
+                    request => request?.HttpContext?.Features?.Get<ITlsHandshakeFeature>()?.Protocol);
                 var responseTask = page.GoToAsync(TestConstants.HttpsPrefix + "/empty.html");
 
                 await Task.WhenAll(
                     requestTask,
-                    responseTask);
+                    responseTask).WithTimeout(Puppeteer.DefaultTimeout);
 
                 var response = responseTask.Result;
                 Assert.True(response.Ok);
@@ -81,7 +83,7 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
             }
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldBeAbleToReconnectToADisconnectedBrowser()
         {
             var options = new ConnectOptions()
@@ -95,7 +97,7 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
 
             Browser.Disconnect();
 
-            using (var browser = await Puppeteer.ConnectAsync(options, TestConstants.LoggerFactory))
+            await using (var browser = await Puppeteer.ConnectAsync(options, TestConstants.LoggerFactory))
             {
                 var pages = (await browser.PagesAsync()).ToList();
                 var restoredPage = pages.FirstOrDefault(x => x.Url == url);
@@ -107,7 +109,7 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
             }
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldBeAbleToConnectToTheSamePageSimultaneously()
         {
             var browserOne = await Puppeteer.LaunchAsync(new LaunchOptions());
@@ -122,17 +124,17 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
                 browserOne.TargetCreated -= TargetCreated;
             }
             browserOne.TargetCreated += TargetCreated;
-            var page2Task = browserOne.NewPageAsync();
+            var page2Task = browserTwo.NewPageAsync();
 
             await Task.WhenAll(tcs.Task, page2Task);
             var page1 = tcs.Task.Result;
             var page2 = page2Task.Result;
 
             Assert.Equal(56, await page1.EvaluateExpressionAsync<int>("7 * 8"));
-            Assert.Equal(42, await page1.EvaluateExpressionAsync<int>("7 * 6"));
+            Assert.Equal(42, await page2.EvaluateExpressionAsync<int>("7 * 6"));
             await browserOne.CloseAsync();
         }
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldSupportCustomWebSocket()
         {
             var customSocketCreated = false;
@@ -146,13 +148,13 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
                 }
             };
 
-            using (await Puppeteer.ConnectAsync(options, TestConstants.LoggerFactory))
+            await using (await Puppeteer.ConnectAsync(options, TestConstants.LoggerFactory))
             {
                 Assert.True(customSocketCreated);
             }
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldSupportCustomTransport()
         {
             var customTransportCreated = false;
@@ -166,7 +168,7 @@ namespace PuppeteerSharp.Tests.PuppeteerTests
                 }
             };
 
-            using (await Puppeteer.ConnectAsync(options, TestConstants.LoggerFactory))
+            await using (await Puppeteer.ConnectAsync(options, TestConstants.LoggerFactory))
             {
                 Assert.True(customTransportCreated);
             }

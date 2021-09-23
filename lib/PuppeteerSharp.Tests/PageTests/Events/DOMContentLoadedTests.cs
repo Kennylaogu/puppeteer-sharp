@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -11,12 +11,12 @@ namespace PuppeteerSharp.Tests.PageTests.Events
         {
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldFireWhenExpected()
         {
             var _ = Page.GoToAsync(TestConstants.AboutBlank);
             var completion = new TaskCompletionSource<bool>();
-            Page.DOMContentLoaded += (sender, e) => completion.SetResult(true);
+            Page.DOMContentLoaded += (_, _) => completion.SetResult(true);
             await completion.Task;
         }
     }

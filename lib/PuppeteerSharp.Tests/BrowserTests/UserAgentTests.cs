@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
+using PuppeteerSharp.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -11,10 +12,11 @@ namespace PuppeteerSharp.Tests.BrowserTests
         {
         }
 
-        [Fact]
+        [PuppeteerTest("browser.spec.ts", "Browser.userAgent", "should include WebKit")]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldIncludeWebKit()
         {
-            string userAgent = await Browser.GetUserAgentAsync();
+            var userAgent = await Browser.GetUserAgentAsync();
             Assert.NotEmpty(userAgent);
 
             if (TestConstants.IsChrome)

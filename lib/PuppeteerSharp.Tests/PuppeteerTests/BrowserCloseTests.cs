@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -11,11 +11,11 @@ namespace PuppeteerSharp.Tests.BrowserTests.Events
         {
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldTerminateNetworkWaiters()
         {
-            using (var browser = await Puppeteer.LaunchAsync(TestConstants.DefaultBrowserOptions()))
-            using (var remote = await Puppeteer.ConnectAsync(new ConnectOptions { BrowserWSEndpoint = browser.WebSocketEndpoint }))
+            await using (var browser = await Puppeteer.LaunchAsync(TestConstants.DefaultBrowserOptions()))
+            await using (var remote = await Puppeteer.ConnectAsync(new ConnectOptions { BrowserWSEndpoint = browser.WebSocketEndpoint }))
             {
                 var newPage = await remote.NewPageAsync();
                 var requestTask = newPage.WaitForRequestAsync(TestConstants.EmptyPage);

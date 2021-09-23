@@ -1,9 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Xunit;
 using PuppeteerSharp.Mobile;
 using Xunit.Abstractions;
 
@@ -12,6 +11,8 @@ namespace PuppeteerSharp.Tests
     public static class TestConstants
     {
         public const string TestFixtureCollectionName = "PuppeteerLoaderFixture collection";
+        public const int DefaultTestTimeout = 30_000;
+        public const int DefaultPuppeteerTimeout = 10_000;
         public const int Port = 8081;
         public const int HttpsPort = Port + 1;
         public const string ServerUrl = "http://localhost:8081";
@@ -43,6 +44,8 @@ namespace PuppeteerSharp.Tests
         {
             SlowMo = Convert.ToInt32(Environment.GetEnvironmentVariable("SLOW_MO")),
             Headless = Convert.ToBoolean(Environment.GetEnvironmentVariable("HEADLESS") ?? "true"),
+            Product = IsChrome ? Product.Chrome : Product.Firefox,
+            EnqueueAsyncMessages = Convert.ToBoolean(Environment.GetEnvironmentVariable("ENQUEUE_ASYNC_MESSAGES") ?? "false"),
             Timeout = 0,
             LogProcess = true,
 #if NETCOREAPP
@@ -61,13 +64,5 @@ namespace PuppeteerSharp.Tests
                 $"--load-extension={ExtensionPath}"
             }
         };
-
-        public static void SetupLogging(ITestOutputHelper output)
-        {
-            if (Debugger.IsAttached && LoggerFactory == null)
-            {
-                LoggerFactory = new LoggerFactory(new[] { new XunitLoggerProvider(output) });
-            }
-        }
     }
 }

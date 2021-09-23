@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
@@ -103,6 +103,7 @@ namespace PuppeteerSharp
         /// Remove server address.
         /// </summary>
         public RemoteAddress RemoteAddress { get; }
+
         internal TaskCompletionSource<bool> BodyLoadedTaskWrapper { get; }
 
         /// <summary>

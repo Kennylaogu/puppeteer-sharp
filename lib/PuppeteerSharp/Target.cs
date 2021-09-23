@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using PuppeteerSharp.Helpers;
@@ -20,6 +20,7 @@ namespace PuppeteerSharp
         #endregion
 
         internal bool IsInitialized { get; set; }
+
         internal TargetInfo TargetInfo { get; set; }
 
         internal Target(
@@ -70,7 +71,7 @@ namespace PuppeteerSharp
         /// <value>The URL.</value>
         public string Url => TargetInfo.Url;
         /// <summary>
-        /// Gets the type. It will be <see cref="TargetInfo.Type"/>.
+        /// Gets the type. It will be <see cref="PuppeteerSharp.TargetInfo.Type"/>.
         /// Can be `"page"`, `"background_page"`, `"service_worker"`, `"shared_worker"`, `"browser"` or `"other"`.
         /// </summary>
         /// <value>The type.</value>
@@ -102,8 +103,11 @@ namespace PuppeteerSharp
         public BrowserContext BrowserContext { get; }
 
         internal Task<bool> InitializedTask => _initializedTaskWrapper.Task;
+
         internal Task CloseTask => CloseTaskWrapper.Task;
+
         internal TaskCompletionSource<bool> CloseTaskWrapper { get; }
+
         internal Task<Page> PageTask { get; set; }
         #endregion
 
@@ -145,8 +149,8 @@ namespace PuppeteerSharp
             return new Worker(
                 client,
                 TargetInfo.Url,
-                (consoleType, handles, stackTrace) => Task.CompletedTask,
-                (e) => { });
+                (_, _, _) => Task.CompletedTask,
+                _ => { });
         }
 
         private async Task<Page> CreatePageAsync()

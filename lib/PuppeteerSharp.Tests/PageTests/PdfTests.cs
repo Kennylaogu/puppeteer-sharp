@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using PuppeteerSharp.Media;
@@ -15,6 +15,30 @@ namespace PuppeteerSharp.Tests.PageTests
         }
 
         [Fact]
+        public async Task Usage()
+        {
+            var outputFile = Path.Combine(BaseDirectory, "Usage.pdf");
+            var fileInfo = new FileInfo(outputFile);
+            if (fileInfo.Exists)
+            {
+                fileInfo.Delete();
+            }
+
+            #region PdfAsync
+
+            var browserFetcher = new BrowserFetcher();
+            await browserFetcher.DownloadAsync();
+            await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions {Headless = true});
+            await using var page = await browser.NewPageAsync();
+            await page.GoToAsync("http://www.google.com");
+            await page.PdfAsync(outputFile);
+
+            #endregion
+
+            Assert.True(File.Exists(outputFile));
+        }
+
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldBeAbleToSaveFile()
         {
             var outputFile = Path.Combine(BaseDirectory, "output.pdf");
@@ -32,7 +56,7 @@ namespace PuppeteerSharp.Tests.PageTests
             }
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public void PdfOptionsShouldBeSerializable()
         {
             var pdfOptions = new PdfOptions

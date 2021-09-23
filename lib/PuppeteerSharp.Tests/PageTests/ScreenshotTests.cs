@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using PuppeteerSharp.Media;
+using PuppeteerSharp.Tests.Attributes;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -15,13 +16,13 @@ namespace PuppeteerSharp.Tests.PageTests
         {
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldWorkWithFile()
         {
             var outputFile = Path.Combine(BaseDirectory, "output.png");
             var fileInfo = new FileInfo(outputFile);
 
-            using (var page = await Context.NewPageAsync())
+            await using (var page = await Context.NewPageAsync())
             {
                 await page.SetViewportAsync(new ViewPortOptions
                 {
@@ -50,9 +51,29 @@ namespace PuppeteerSharp.Tests.PageTests
         }
 
         [Fact]
+        public async Task Usage()
+        {
+            var outputFile = Path.Combine(BaseDirectory, "Usage.png");
+            var fileInfo = new FileInfo(outputFile);
+            if (fileInfo.Exists)
+            {
+                fileInfo.Delete();
+            }
+            #region ScreenshotAsync
+            var browserFetcher = new BrowserFetcher();
+            await browserFetcher.DownloadAsync();
+            await using var browser = await Puppeteer.LaunchAsync(
+                new LaunchOptions { Headless = true });
+            await using var page = await browser.NewPageAsync();
+            await page.GoToAsync("http://www.google.com");
+            await page.ScreenshotAsync(outputFile);
+            #endregion
+            Assert.True(File.Exists(outputFile));
+        }
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldWork()
         {
-            using (var page = await Context.NewPageAsync())
+            await using (var page = await Context.NewPageAsync())
             {
                 await page.SetViewportAsync(new ViewPortOptions
                 {
@@ -65,10 +86,10 @@ namespace PuppeteerSharp.Tests.PageTests
             }
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldClipRect()
         {
-            using (var page = await Context.NewPageAsync())
+            await using (var page = await Context.NewPageAsync())
             {
                 await page.SetViewportAsync(new ViewPortOptions
                 {
@@ -90,10 +111,36 @@ namespace PuppeteerSharp.Tests.PageTests
             }
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
+        public async Task ShouldClipScale()
+        {
+            await using (var page = await Context.NewPageAsync())
+            {
+                await page.SetViewportAsync(new ViewPortOptions
+                {
+                    Width = 500,
+                    Height = 500
+                });
+                await page.GoToAsync(TestConstants.ServerUrl + "/grid.html");
+                var screenshot = await page.ScreenshotDataAsync(new ScreenshotOptions
+                {
+                    Clip = new Clip
+                    {
+                        X = 50,
+                        Y = 100,
+                        Width = 150,
+                        Height = 100,
+                        Scale = 2
+                    }
+                });
+                Assert.True(ScreenshotHelper.PixelMatch("screenshot-clip-rect-scale.png", screenshot));
+            }
+        }
+
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldClipElementsToTheViewport()
         {
-            using (var page = await Context.NewPageAsync())
+            await using (var page = await Context.NewPageAsync())
             {
                 await page.SetViewportAsync(new ViewPortOptions { Width = 500, Height = 500 });
                 await page.GoToAsync(TestConstants.ServerUrl + "/grid.html");
@@ -112,10 +159,10 @@ namespace PuppeteerSharp.Tests.PageTests
             }
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldRunInParallel()
         {
-            using (var page = await Context.NewPageAsync())
+            await using (var page = await Context.NewPageAsync())
             {
                 await page.SetViewportAsync(new ViewPortOptions
                 {
@@ -144,10 +191,10 @@ namespace PuppeteerSharp.Tests.PageTests
             }
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldTakeFullPageScreenshots()
         {
-            using (var page = await Context.NewPageAsync())
+            await using (var page = await Context.NewPageAsync())
             {
                 await page.SetViewportAsync(new ViewPortOptions
                 {
@@ -163,7 +210,7 @@ namespace PuppeteerSharp.Tests.PageTests
             }
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldRunInParallelInMultiplePages()
         {
             var n = 2;
@@ -213,10 +260,10 @@ namespace PuppeteerSharp.Tests.PageTests
             await Task.WhenAll(closeTasks);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldAllowTransparency()
         {
-            using (var page = await Context.NewPageAsync())
+            await using (var page = await Context.NewPageAsync())
             {
                 await page.SetViewportAsync(new ViewPortOptions
                 {
@@ -233,10 +280,10 @@ namespace PuppeteerSharp.Tests.PageTests
             }
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldRenderWhiteBackgroundOnJpegFile()
         {
-            using (var page = await Context.NewPageAsync())
+            await using (var page = await Context.NewPageAsync())
             {
                 await page.SetViewportAsync(new ViewPortOptions { Width = 100, Height = 100 });
                 await page.GoToAsync(TestConstants.EmptyPage);
@@ -249,10 +296,10 @@ namespace PuppeteerSharp.Tests.PageTests
             }
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldWorkWithOddClipSizeOnRetinaDisplays()
         {
-            using (var page = await Context.NewPageAsync())
+            await using (var page = await Context.NewPageAsync())
             {
                 var screenshot = await page.ScreenshotDataAsync(new ScreenshotOptions
                 {
@@ -269,10 +316,10 @@ namespace PuppeteerSharp.Tests.PageTests
             }
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldReturnBase64()
         {
-            using (var page = await Context.NewPageAsync())
+            await using (var page = await Context.NewPageAsync())
             {
                 await page.SetViewportAsync(new ViewPortOptions
                 {
@@ -286,7 +333,7 @@ namespace PuppeteerSharp.Tests.PageTests
             }
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public void ShouldInferScreenshotTypeFromName()
         {
             Assert.Equal(ScreenshotType.Jpeg, ScreenshotOptions.GetScreenshotTypeFromFile("Test.jpg"));
@@ -296,10 +343,10 @@ namespace PuppeteerSharp.Tests.PageTests
             Assert.Null(ScreenshotOptions.GetScreenshotTypeFromFile("Test.exe"));
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldWorkWithQuality()
         {
-            using (var page = await Context.NewPageAsync())
+            await using (var page = await Context.NewPageAsync())
             {
                 await page.SetViewportAsync(new ViewPortOptions
                 {

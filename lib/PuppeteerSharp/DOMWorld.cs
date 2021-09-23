@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
@@ -16,7 +17,7 @@ namespace PuppeteerSharp
         private TaskCompletionSource<ExecutionContext> _contextResolveTaskWrapper;
         private TaskCompletionSource<ElementHandle> _documentCompletionSource;
 
-        internal List<WaitTask> WaitTasks { get; set; }
+        internal ICollection<WaitTask> WaitTasks { get; set; }
 
         internal Frame Frame { get; }
 
@@ -28,7 +29,7 @@ namespace PuppeteerSharp
 
             SetContext(null);
 
-            WaitTasks = new List<WaitTask>();
+            WaitTasks = new ConcurrentSet<WaitTask>();
             _detached = false;
         }
 
@@ -45,7 +46,7 @@ namespace PuppeteerSharp
             else
             {
                 _documentCompletionSource = null;
-                _contextResolveTaskWrapper = new TaskCompletionSource<ExecutionContext>();
+                _contextResolveTaskWrapper = new TaskCompletionSource<ExecutionContext>(TaskCreationOptions.RunContinuationsAsynchronously);
             }
         }
 
@@ -56,7 +57,7 @@ namespace PuppeteerSharp
             _detached = true;
             while (WaitTasks.Count > 0)
             {
-                WaitTasks[0].Terminate(new Exception("waitForFunction failed: frame got detached."));
+                WaitTasks.First().Terminate(new Exception("waitForFunction failed: frame got detached."));
             }
         }
 
@@ -86,6 +87,7 @@ namespace PuppeteerSharp
             var context = await GetExecutionContextAsync().ConfigureAwait(false);
             return await context.EvaluateExpressionAsync<T>(script).ConfigureAwait(false);
         }
+
         internal async Task<JToken> EvaluateExpressionAsync(string script)
         {
             var context = await GetExecutionContextAsync().ConfigureAwait(false);
@@ -97,6 +99,7 @@ namespace PuppeteerSharp
             var context = await GetExecutionContextAsync().ConfigureAwait(false);
             return await context.EvaluateFunctionAsync<T>(script, args).ConfigureAwait(false);
         }
+
         internal async Task<JToken> EvaluateFunctionAsync(string script, params object[] args)
         {
             var context = await GetExecutionContextAsync().ConfigureAwait(false);
@@ -419,13 +422,7 @@ namespace PuppeteerSharp
                 polling,
                 null,
                 timeout,
-                new object[]
-                {
-                    selectorOrXPath,
-                    isXPath,
-                    options.Visible,
-                    options.Hidden
-                }).Task.ConfigureAwait(false);
+                new object[] { selectorOrXPath, isXPath, options.Visible, options.Hidden }).Task.ConfigureAwait(false);
 
             if (!(handle is ElementHandle elementHandle))
             {

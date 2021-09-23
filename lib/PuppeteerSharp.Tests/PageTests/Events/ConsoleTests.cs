@@ -1,8 +1,9 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
+using PuppeteerSharp.Tests.Attributes;
 
 namespace PuppeteerSharp.Tests.PageTests.Events
 {
@@ -13,7 +14,7 @@ namespace PuppeteerSharp.Tests.PageTests.Events
         {
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldWork()
         {
             ConsoleMessage message = null;
@@ -39,12 +40,12 @@ namespace PuppeteerSharp.Tests.PageTests.Events
             Assert.Equal("bar", (await message.Args[2].JsonValueAsync<dynamic>()).foo.ToString());
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldWorkForDifferentConsoleApiCalls()
         {
             var messages = new List<ConsoleMessage>();
 
-            Page.Console += (sender, e) => messages.Add(e.Message);
+            Page.Console += (_, e) => messages.Add(e.Message);
 
             await Page.EvaluateFunctionAsync(@"() => {
               // A pair of time/timeEnd generates only one Console API call.
@@ -84,7 +85,7 @@ namespace PuppeteerSharp.Tests.PageTests.Events
                 .ToArray());
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldNotFailForWindowObject()
         {
             var consoleTcs = new TaskCompletionSource<string>();
@@ -105,13 +106,13 @@ namespace PuppeteerSharp.Tests.PageTests.Events
             Assert.Equal("JSHandle@object", await consoleTcs.Task);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldTriggerCorrectLog()
         {
             await Page.GoToAsync(TestConstants.AboutBlank);
             var messageTask = new TaskCompletionSource<ConsoleMessage>();
 
-            Page.Console += (sender, e) => messageTask.TrySetResult(e.Message);
+            Page.Console += (_, e) => messageTask.TrySetResult(e.Message);
 
             await Page.EvaluateFunctionAsync("async url => fetch(url).catch(e => {})", TestConstants.EmptyPage);
             var message = await messageTask.Task;
@@ -127,12 +128,12 @@ namespace PuppeteerSharp.Tests.PageTests.Events
             }
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldHaveLocationWhenFetchFails()
         {
             await Page.GoToAsync(TestConstants.EmptyPage);
             var consoleTask = new TaskCompletionSource<ConsoleEventArgs>();
-            Page.Console += (sender, e) => consoleTask.TrySetResult(e);
+            Page.Console += (_, e) => consoleTask.TrySetResult(e);
 
             await Task.WhenAll(
                 consoleTask.Task,
@@ -147,12 +148,12 @@ namespace PuppeteerSharp.Tests.PageTests.Events
             }, args.Message.Location);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldHaveLocationForConsoleAPICalls()
         {
             await Page.GoToAsync(TestConstants.EmptyPage);
             var consoleTask = new TaskCompletionSource<ConsoleEventArgs>();
-            Page.Console += (sender, e) => consoleTask.TrySetResult(e);
+            Page.Console += (_, e) => consoleTask.TrySetResult(e);
 
             await Task.WhenAll(
                 consoleTask.Task,
@@ -169,7 +170,7 @@ namespace PuppeteerSharp.Tests.PageTests.Events
             }, args.Message.Location);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldNotThrowWhenThereAreConsoleMessagesInDetachedIframes()
         {
             await Page.GoToAsync(TestConstants.EmptyPage);

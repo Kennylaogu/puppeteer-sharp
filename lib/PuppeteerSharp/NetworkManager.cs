@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using PuppeteerSharp.Helpers;
@@ -17,16 +18,23 @@ namespace PuppeteerSharp
         private readonly ConcurrentDictionary<string, Request> _requestIdToRequest = new ConcurrentDictionary<string, Request>();
         private readonly ConcurrentDictionary<string, RequestWillBeSentPayload> _requestIdToRequestWillBeSentEvent =
             new ConcurrentDictionary<string, RequestWillBeSentPayload>();
+
         private readonly ConcurrentDictionary<string, string> _requestIdToInterceptionId = new ConcurrentDictionary<string, string>();
         private readonly ILogger _logger;
         private Dictionary<string, string> _extraHTTPHeaders;
-        private bool _offine;
         private Credentials _credentials;
-        private readonly List<string> _attemptedAuthentications = new List<string>();
+        private readonly ConcurrentSet<string> _attemptedAuthentications = new ConcurrentSet<string>();
         private bool _userRequestInterceptionEnabled;
         private bool _protocolRequestInterceptionEnabled;
         private readonly bool _ignoreHTTPSErrors;
         private bool _userCacheDisabled;
+        private readonly InternalNetworkConditions _emulatedNetworkConditions = new InternalNetworkConditions
+        {
+            Offline = false,
+            Upload = -1,
+            Download = -1,
+            Latency = 0,
+        };
         #endregion
 
         internal NetworkManager(CDPSession client, bool ignoreHTTPSErrors, FrameManager frameManager)
@@ -40,10 +48,15 @@ namespace PuppeteerSharp
 
         #region Public Properties
         internal Dictionary<string, string> ExtraHTTPHeaders => _extraHTTPHeaders?.Clone();
+
         internal event EventHandler<ResponseCreatedEventArgs> Response;
+
         internal event EventHandler<RequestEventArgs> Request;
+
         internal event EventHandler<RequestEventArgs> RequestFinished;
+
         internal event EventHandler<RequestEventArgs> RequestFailed;
+
         internal FrameManager FrameManager { get; set; }
         #endregion
 
@@ -73,7 +86,7 @@ namespace PuppeteerSharp
 
             foreach (var item in extraHTTPHeaders)
             {
-                _extraHTTPHeaders[item.Key.ToLower()] = item.Value;
+                _extraHTTPHeaders[item.Key.ToLower(CultureInfo.CurrentCulture)] = item.Value;
             }
             return _client.SendAsync("Network.setExtraHTTPHeaders", new NetworkSetExtraHTTPHeadersRequest
             {
@@ -83,19 +96,26 @@ namespace PuppeteerSharp
 
         internal async Task SetOfflineModeAsync(bool value)
         {
-            if (_offine != value)
-            {
-                _offine = value;
-
-                await _client.SendAsync("Network.emulateNetworkConditions", new NetworkEmulateNetworkConditionsRequest
-                {
-                    Offline = value,
-                    Latency = 0,
-                    DownloadThroughput = -1,
-                    UploadThroughput = -1
-                }).ConfigureAwait(false);
-            }
+            _emulatedNetworkConditions.Offline = value;
+            await UpdateNetworkConditionsAsync().ConfigureAwait(false);
         }
+
+        internal async Task EmulateNetworkConditionsAsync(NetworkConditions networkConditions)
+        {
+            _emulatedNetworkConditions.Upload = networkConditions?.Upload ?? -1;
+            _emulatedNetworkConditions.Download = networkConditions?.Download ?? -1;
+            _emulatedNetworkConditions.Latency = networkConditions?.Latency ?? 0;
+            await UpdateNetworkConditionsAsync().ConfigureAwait(false);
+        }
+
+        private Task UpdateNetworkConditionsAsync()
+            => _client.SendAsync("Network.emulateNetworkConditions", new NetworkEmulateNetworkConditionsRequest
+            {
+                Offline = _emulatedNetworkConditions.Offline,
+                Latency = _emulatedNetworkConditions.Latency,
+                UploadThroughput = _emulatedNetworkConditions.Upload,
+                DownloadThroughput = _emulatedNetworkConditions.Download,
+            });
 
         internal Task SetUserAgentAsync(string userAgent)
             => _client.SendAsync("Network.setUserAgentOverride", new NetworkSetUserAgentOverrideRequest
@@ -122,7 +142,7 @@ namespace PuppeteerSharp
         private Task UpdateProtocolCacheDisabledAsync()
             => _client.SendAsync("Network.setCacheDisabled", new NetworkSetCacheDisabledRequest
             {
-                CacheDisabled = _userCacheDisabled || _protocolRequestInterceptionEnabled
+                CacheDisabled = _userCacheDisabled || _userRequestInterceptionEnabled
             });
 
         private async void Client_MessageReceived(object sender, MessageEventArgs e)
@@ -369,9 +389,9 @@ namespace PuppeteerSharp
         private async Task OnRequestWillBeSentAsync(RequestWillBeSentPayload e)
         {
             // Request interception doesn't happen for data URLs with Network Service.
-            if (_protocolRequestInterceptionEnabled && !e.Request.Url.StartsWith("data:", StringComparison.InvariantCultureIgnoreCase))
+            if (_userRequestInterceptionEnabled && !e.Request.Url.StartsWith("data:", StringComparison.InvariantCultureIgnoreCase))
             {
-                if (_requestIdToInterceptionId.TryRemove(e.RequestId, out string interceptionId))
+                if (_requestIdToInterceptionId.TryRemove(e.RequestId, out var interceptionId))
                 {
                     await OnRequestAsync(e, interceptionId).ConfigureAwait(false);
                 }
@@ -402,15 +422,13 @@ namespace PuppeteerSharp
                     {
                         HandleAuthRequests = true,
                         Patterns = new[] { new FetchEnableRequest.Pattern { UrlPattern = "*" } }
-                    })
-                ).ConfigureAwait(false);
+                    })).ConfigureAwait(false);
             }
             else
             {
                 await Task.WhenAll(
                     UpdateProtocolCacheDisabledAsync(),
-                    _client.SendAsync("Fetch.disable")
-                ).ConfigureAwait(false);
+                    _client.SendAsync("Fetch.disable")).ConfigureAwait(false);
             }
         }
 

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 using PuppeteerSharp.Helpers;
+using PuppeteerSharp.Tests.Attributes;
 
 namespace PuppeteerSharp.Tests.NetworkTests
 {
@@ -20,19 +21,19 @@ namespace PuppeteerSharp.Tests.NetworkTests
         {
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldWork()
         {
             await Page.SetRequestInterceptionAsync(true);
-            Page.Request += async (sender, e) => await e.Request.ContinueAsync();
+            Page.Request += async (_, e) => await e.Request.ContinueAsync();
             await Page.GoToAsync(TestConstants.EmptyPage);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldAmendHTTPHeaders()
         {
             await Page.SetRequestInterceptionAsync(true);
-            Page.Request += async (sender, e) =>
+            Page.Request += async (_, e) =>
             {
                 var headers = new Dictionary<string, string>(e.Request.Headers)
                 {
@@ -49,11 +50,11 @@ namespace PuppeteerSharp.Tests.NetworkTests
             Assert.Equal("bar", requestTask.Result);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldRedirectInAWayNonObservableToPage()
         {
             await Page.SetRequestInterceptionAsync(true);
-            Page.Request += async (sender, e) =>
+            Page.Request += async (_, e) =>
             {
                 var redirectURL = e.Request.Url.Contains("/empty.html")
                     ? TestConstants.ServerUrl + "/consolelog.html" :
@@ -61,18 +62,18 @@ namespace PuppeteerSharp.Tests.NetworkTests
                 await e.Request.ContinueAsync(new Payload { Url = redirectURL });
             };
             string consoleMessage = null;
-            Page.Console += (sender, e) => consoleMessage = e.Message.Text;
+            Page.Console += (_, e) => consoleMessage = e.Message.Text;
             await Page.GoToAsync(TestConstants.EmptyPage);
             Assert.Equal(TestConstants.EmptyPage, Page.Url);
             Assert.Equal("yellow", consoleMessage);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldAmendMethodData()
         {
             await Page.GoToAsync(TestConstants.EmptyPage);
             await Page.SetRequestInterceptionAsync(true);
-            Page.Request += async (sender, e) =>
+            Page.Request += async (_, e) =>
             {
                 await e.Request.ContinueAsync(new Payload { Method = HttpMethod.Post });
             };
@@ -87,11 +88,11 @@ namespace PuppeteerSharp.Tests.NetworkTests
             Assert.Equal("POST", requestTask.Result);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldAmendPostData()
         {
             await Page.SetRequestInterceptionAsync(true);
-            Page.Request += async (sender, e) =>
+            Page.Request += async (_, e) =>
             {
                 await e.Request.ContinueAsync(new Payload
                 {
@@ -115,11 +116,11 @@ namespace PuppeteerSharp.Tests.NetworkTests
             Assert.Equal("doggo", await requestTask.Result);
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldAmendBothPostDataAndMethodOnNavigation()
         {
             await Page.SetRequestInterceptionAsync(true);
-            Page.Request += async (sender, e) => await e.Request.ContinueAsync(new Payload
+            Page.Request += async (_, e) => await e.Request.ContinueAsync(new Payload
             {
                 Method = HttpMethod.Post,
                 PostData = "doggo"

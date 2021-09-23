@@ -5,6 +5,7 @@ using System.Linq;
 using System.Diagnostics.Contracts;
 using PuppeteerSharp.Helpers;
 using System.Threading;
+using System.Diagnostics.CodeAnalysis;
 
 namespace PuppeteerSharp
 {
@@ -28,11 +29,12 @@ namespace PuppeteerSharp
         private readonly string _initialLoaderId;
         private Request _navigationRequest;
         private bool _hasSameDocumentNavigation;
-        private TaskCompletionSource<bool> _newDocumentNavigationTaskWrapper;
-        private TaskCompletionSource<bool> _sameDocumentNavigationTaskWrapper;
-        private TaskCompletionSource<bool> _lifecycleTaskWrapper;
-        private TaskCompletionSource<bool> _terminationTaskWrapper;
-        private CancellationTokenSource _terminationCancellationToken;
+        private readonly TaskCompletionSource<bool> _newDocumentNavigationTaskWrapper;
+        private readonly TaskCompletionSource<bool> _sameDocumentNavigationTaskWrapper;
+        private readonly TaskCompletionSource<bool> _lifecycleTaskWrapper;
+        private readonly TaskCompletionSource<bool> _terminationTaskWrapper;
+        [SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", Justification = "False positive, as it is disposed.")]
+        private readonly CancellationTokenSource _terminationCancellationToken;
 
         public LifecycleWatcher(
             FrameManager frameManager,
@@ -70,9 +72,13 @@ namespace PuppeteerSharp
 
         #region Properties
         public Task<bool> SameDocumentNavigationTask => _sameDocumentNavigationTaskWrapper.Task;
+
         public Task<bool> NewDocumentNavigationTask => _newDocumentNavigationTaskWrapper.Task;
+
         public Response NavigationResponse => _navigationRequest?.Response;
+
         public Task TimeoutOrTerminationTask => _terminationTaskWrapper.Task.WithTimeout(_timeout, cancellationToken: _terminationCancellationToken.Token);
+
         public Task LifecycleTask => _lifecycleTaskWrapper.Task;
 
         #endregion
@@ -158,11 +164,7 @@ namespace PuppeteerSharp
             return true;
         }
 
-        public void Dispose() => Dispose(true);
-
-        ~LifecycleWatcher() => Dispose(false);
-
-        public void Dispose(bool disposing)
+        public void Dispose()
         {
             _frameManager.LifecycleEvent -= FrameManager_LifecycleEvent;
             _frameManager.FrameNavigatedWithinDocument -= NavigatedWithinDocument;

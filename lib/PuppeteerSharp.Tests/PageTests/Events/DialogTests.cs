@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
+using PuppeteerSharp.Tests.Attributes;
 
 namespace PuppeteerSharp.Tests.PageTests.Events
 {
@@ -14,10 +15,10 @@ namespace PuppeteerSharp.Tests.PageTests.Events
         {
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldFire()
         {
-            Page.Dialog += async (sender, e) =>
+            Page.Dialog += async (_, e) =>
             {
                 Assert.Equal(DialogType.Alert, e.Dialog.DialogType);
                 Assert.Equal(string.Empty, e.Dialog.DefaultValue);
@@ -29,10 +30,10 @@ namespace PuppeteerSharp.Tests.PageTests.Events
             await Page.EvaluateExpressionAsync("alert('yo');");
         }
 
-        [Fact]
+        [SkipBrowserFact(skipFirefox: true)]
         public async Task ShouldAllowAcceptingPrompts()
         {
-            Page.Dialog += async (sender, e) =>
+            Page.Dialog += async (_, e) =>
             {
                 Assert.Equal(DialogType.Prompt, e.Dialog.DialogType);
                 Assert.Equal("yes.", e.Dialog.DefaultValue);
@@ -45,10 +46,10 @@ namespace PuppeteerSharp.Tests.PageTests.Events
             Assert.Equal("answer!", result);
         }
 
-        [Fact]
+        [Fact(Timeout = TestConstants.DefaultTestTimeout)]
         public async Task ShouldDismissThePrompt()
         {
-            Page.Dialog += async (sender, e) =>
+            Page.Dialog += async (_, e) =>
             {
                 await e.Dialog.Dismiss();
             };
