@@ -12,6 +12,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using ICSharpCode.SharpZipLib.BZip2;
 using ICSharpCode.SharpZipLib.Tar;
+using Newtonsoft.Json;
 using PuppeteerSharp.Helpers;
 using PuppeteerSharp.Helpers.Linux;
 
@@ -60,12 +61,12 @@ namespace PuppeteerSharp
         /// <summary>
         /// Default Chromium revision.
         /// </summary>
-        public const string DefaultChromiumRevision = "848005";
+        public const string DefaultChromiumRevision = "884014";
 
         /// <summary>
-        /// Default Chromium revision.
+        /// Default Firefox revision.
         /// </summary>
-        public const string DefaultFirefoxRevision = "89.0a1";
+        public string DefaultFirefoxRevision { get; private set; } = "latest";
 
         /// <summary>
         /// Gets the downloads folder.
@@ -215,7 +216,8 @@ namespace PuppeteerSharp
         /// Gets the revision info.
         /// </summary>
         /// <returns>Revision info.</returns>
-        public RevisionInfo RevisionInfo() => RevisionInfo(Product == Product.Chrome ? DefaultChromiumRevision : DefaultFirefoxRevision);
+        public async Task<RevisionInfo> GetRevisionInfoAsync()
+            => RevisionInfo(Product == Product.Chrome ? DefaultChromiumRevision : await GetDefaultFirefoxRevisionAsync().ConfigureAwait(false));
 
         /// <summary>
         /// Gets the revision info.
@@ -249,7 +251,11 @@ namespace PuppeteerSharp
         /// Downloads the revision.
         /// </summary>
         /// <returns>Task which resolves to the completed download.</returns>
-        public Task<RevisionInfo> DownloadAsync() => DownloadAsync(Product == Product.Chrome ? DefaultChromiumRevision : DefaultFirefoxRevision);
+        public async Task<RevisionInfo> DownloadAsync()
+            => await DownloadAsync(
+                Product == Product.Chrome
+                ? DefaultChromiumRevision
+                : await GetDefaultFirefoxRevisionAsync().ConfigureAwait(false)).ConfigureAwait(false);
 
         /// <summary>
         /// Downloads the revision.
@@ -261,6 +267,7 @@ namespace PuppeteerSharp
             var url = GetDownloadURL(Product, Platform, DownloadHost, revision);
             var filePath = Path.Combine(DownloadsFolder, url.Split('/').Last());
             var folderPath = GetFolderPath(revision);
+            var archiveName = GetArchiveName(Product, Platform, revision);
 
             if (new DirectoryInfo(folderPath).Exists)
             {
@@ -302,31 +309,38 @@ namespace PuppeteerSharp
 
             new FileInfo(filePath).Delete();
 
-            var revisionInfo = RevisionInfo(revision);
-
-            if (revisionInfo != null && GetCurrentPlatform() == Platform.Linux)
+            if (GetCurrentPlatform() == Platform.Linux)
             {
-                var execPath = revisionInfo.ExecutablePath;
-                var dirName = Path.GetDirectoryName(execPath);
-
-                var code = LinuxSysCall.Chmod(execPath, LinuxSysCall.ExecutableFilePermissions);
-                if (code != 0)
+                var executables = new string[]
                 {
-                    throw new Exception("Chmod operation failed");
-                }
+                    "chrome",
+                    "chrome_sandbox", // setuid
+                    "crashpad_handler",
+                    "google-chrome",
+                    "nacl_helper",
+                    "nacl_helper_bootstrap",
+                    "xdg-mime",
+                    "xdg-settings",
+                    "cron/google-chrome",
+                };
 
-                var naclPath = $"{dirName}/nacl_helper";
-                if (File.Exists(naclPath))
+                foreach (var executable in executables)
                 {
-                    code = LinuxSysCall.Chmod(naclPath, LinuxSysCall.ExecutableFilePermissions);
-                    if (code != 0)
+                    var execPath = Path.Combine(folderPath, archiveName, executable);
+
+                    if (File.Exists(execPath))
                     {
-                        throw new Exception("Chmod operation failed");
+                        var code = LinuxSysCall.Chmod(execPath, LinuxSysCall.ExecutableFilePermissions);
+
+                        if (code != 0)
+                        {
+                            throw new Exception("Chmod operation failed");
+                        }
                     }
                 }
             }
 
-            return revisionInfo;
+            return RevisionInfo(revision);
         }
 
         private Task InstallDMGAsync(string dmgPath, string folderPath)
@@ -554,6 +568,19 @@ namespace PuppeteerSharp
             }
 
             return splits[1];
+        }
+
+        private async Task<string> GetDefaultFirefoxRevisionAsync()
+        {
+            if (DefaultFirefoxRevision == "latest")
+            {
+                using var client = new HttpClient();
+                var response = await client.GetStringAsync("https://product-details.mozilla.org/1.0/firefox_versions.json").ConfigureAwait(false);
+                var version = JsonConvert.DeserializeObject<Dictionary<string, string>>(response);
+                DefaultFirefoxRevision = version["FIREFOX_NIGHTLY"];
+            }
+
+            return DefaultFirefoxRevision;
         }
 
         private static string GetArchiveName(Product product, Platform platform, string revision)
